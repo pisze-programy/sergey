@@ -17,28 +17,30 @@ final class ResponseOverlayManager {
             })
             let hostingView = NSHostingView(rootView: rootView)
 
+            let screenRect = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+            let x = screenRect.maxX - windowWidth - 16
+
             if let window = self.window {
                 window.contentView = hostingView
                 let fittingSize = hostingView.fittingSize
-                let height = min(max(fittingSize.height, 100), 700)
-                let screenRect = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-                let x = screenRect.maxX - windowWidth - 16
+                let height = min(max(fittingSize.height, 120), 700)
                 let y = screenRect.maxY - height - 16
 
                 NSAnimationContext.runAnimationGroup { context in
                     context.duration = 0.25
-                    context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                    context.timingFunction = CAMediaTimingFunction(name: .easeOut)
                     window.animator().setFrame(NSRect(x: x, y: y, width: windowWidth, height: height), display: true)
                 }
             } else {
                 let initialFittingSize = hostingView.fittingSize
-                let height = min(max(initialFittingSize.height, 100), 700)
-                let screenRect = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-                let x = screenRect.maxX - windowWidth - 16
-                let y = screenRect.maxY - height - 16
+                let height = min(max(initialFittingSize.height, 120), 700)
+                
+                // Start above screen (off-screen)
+                let startY = screenRect.maxY + 30
+                let targetY = screenRect.maxY - height - 16
 
                 let window = OverlayWindow(
-                    contentRect: NSRect(x: x, y: y, width: windowWidth, height: height),
+                    contentRect: NSRect(x: x, y: startY, width: windowWidth, height: height),
                     styleMask: [.borderless, .nonactivatingPanel],
                     backing: .buffered,
                     defer: false
@@ -50,14 +52,33 @@ final class ResponseOverlayManager {
                 window.contentView = hostingView
                 window.makeKeyAndOrderFront(nil)
                 self.window = window
+
+                // Slide down animation (top to bottom)
+                NSAnimationContext.runAnimationGroup { context in
+                    context.duration = 0.3
+                    context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                    window.animator().setFrame(NSRect(x: x, y: targetY, width: windowWidth, height: height), display: true)
+                }
             }
         }
     }
 
     func hide() {
         DispatchQueue.main.async {
-            self.window?.orderOut(nil)
-            self.window = nil
+            guard let window = self.window else { return }
+            let screenRect = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+            let currentFrame = window.frame
+            let targetY = screenRect.maxY + 30
+
+            // Slide up animation (bottom to top)
+            NSAnimationContext.runAnimationGroup({ context in
+                context.duration = 0.25
+                context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+                window.animator().setFrame(NSRect(x: currentFrame.origin.x, y: targetY, width: currentFrame.width, height: currentFrame.height), display: true)
+            }, completionHandler: {
+                window.orderOut(nil)
+                self.window = nil
+            })
         }
     }
 }
@@ -79,11 +100,22 @@ struct ResponseOverlayView: View {
                     ProgressView()
                         .scaleEffect(0.7)
                 }
+                Button(action: {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(text, forType: .string)
+                }) {
+                    Image(systemName: "doc.on.doc")
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Copy text to clipboard")
+
                 Button(action: onClose) {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
+                .help("Close")
             }
 
             ScrollView {
@@ -95,7 +127,7 @@ struct ResponseOverlayView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .animation(.easeInOut(duration: 0.2), value: text)
             }
-            .frame(maxHeight: 620)
+            .frame(minHeight: 80, maxHeight: 520)
         }
         .padding(16)
         .background(

@@ -13,20 +13,62 @@ final class HotkeyManager {
 
     private var voiceActive = false
     private var visionActive = false
+    private var escapeHotKeyRef: EventHotKeyRef?
 
     func start() {
+        // Global monitor (other apps)
         NSEvent.addGlobalMonitorForEvents(
             matching: [.flagsChanged]
         ) { [weak self] event in
             self?.handle(event)
         }
 
-        NSEvent.addGlobalMonitorForEvents(
+        // Local monitor (our app / overlay)
+        NSEvent.addLocalMonitorForEvents(
+            matching: [.flagsChanged]
+        ) { [weak self] event in
+            self?.handle(event)
+            return event
+        }
+
+        // Local monitor (our app / overlay keydown)
+        NSEvent.addLocalMonitorForEvents(
             matching: [.keyDown]
         ) { [weak self] event in
             if event.keyCode == 53 { // ESC key
-                self?.onEscapePressed?()
+                DispatchQueue.main.async {
+                    self?.onEscapePressed?()
+                }
+                return nil
             }
+            return event
+        }
+
+        registerGlobalEscapeHotkey()
+    }
+
+    private func registerGlobalEscapeHotkey() {
+        var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
+        
+        InstallEventHandler(GetEventDispatcherTarget(), { (_, event, _) -> OSStatus in
+            var hotKeyID = EventHotKeyID()
+            GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), nil, MemoryLayout<EventHotKeyID>.size, nil, &hotKeyID)
+            
+            if hotKeyID.id == 999 {
+                print("🔴 Global Carbon ESC HotKey detected!")
+                DispatchQueue.main.async {
+                    HotkeyManager.shared.onEscapePressed?()
+                }
+            }
+            return noErr
+        }, 1, &eventType, nil, nil)
+
+        let hotKeyID = EventHotKeyID(signature: OSType(0x53455247), id: 999)
+        let status = RegisterEventHotKey(53, 0, hotKeyID, GetEventDispatcherTarget(), 0, &escapeHotKeyRef)
+        if status == noErr {
+            print("✅ Global Carbon ESC HotKey successfully registered.")
+        } else {
+            print("❌ Failed to register Global Carbon ESC HotKey: \(status)")
         }
     }
 
@@ -36,6 +78,8 @@ final class HotkeyManager {
         let fn = flags.contains(.function)
         let shift = flags.contains(.shift)
         let control = flags.contains(.control)
+
+        print("🎛️ Flags changed: fn=\(fn), shift=\(shift), ctrl=\(control)")
 
         if fn && control {
             if !voiceActive {

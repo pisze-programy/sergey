@@ -10,9 +10,22 @@
 		78520E0C3013612F000AB71E /* sergey.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = sergey.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		784B45773013A0F8001EA662 /* Exceptions for "sergey" folder in "sergey" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 78520E0B3013612F000AB71E /* sergey */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		78520E0E3013612F000AB71E /* sergey */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				784B45773013A0F8001EA662 /* Exceptions for "sergey" folder in "sergey" target */,
+			);
 			path = sergey;
 			sourceTree = "<group>";
 		};
@@ -254,14 +267,11 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 3UKH2QRFKZ;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Sergey needs access to the microphone to record your voice prompts";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Sergey uses speech recognition to convert your voice commands into text prompts";
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = YES;
+				INFOPLIST_FILE = sergey/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -288,14 +298,12 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 3UKH2QRFKZ;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Sergey needs access to the microphone to record your voice prompts";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Sergey uses speech recognition to convert your voice commands into text prompts";
+				INFOPLIST_FILE = sergey/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

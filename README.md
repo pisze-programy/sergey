@@ -28,7 +28,14 @@ AI Buddy analyzes the current application context, generates a response, and can
 
 ---
 
-## Tech Stack
+## Permissions
+
+## Permissions
+
+- **Microphone**: Required for recording voice commands.
+- **Speech Recognition**: Required for converting speech to text in real-time.
+- **Screen Recording**: Required via ScreenCaptureKit to capture screen context for the AI.
+- **Accessibility**: Required for global hotkeys (`Fn + Shift`, global `ESC`) to work system-wide.
 
 * **Swift / SwiftUI** — macOS application and UI
 * **ScreenCaptureKit** — screen capture and screenshots

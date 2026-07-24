@@ -6,5 +6,10 @@
     <string>Sergey needs access to the microphone to record your voice prompts.</string>
     <key>NSSpeechRecognitionUsageDescription</key>
     <string>Sergey uses speech recognition to convert your voice commands into text prompts.</string>
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsLocalNetworking</key>
+        <true/>
+    </dict>
 </dict>
 </plist>
