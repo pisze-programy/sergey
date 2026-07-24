@@ -16,6 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func requestPermissions() {
+        NSApp.activate(ignoringOtherApps: true)
         AVCaptureDevice.requestAccess(for: .audio) { granted in
             print("Microphone access granted: \(granted)")
         }

@@ -10,7 +10,7 @@ struct MenuBar: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Sergey AI Buddy")
+            Text("Sergey AI")
                 .font(.headline)
             Divider()
             
@@ -26,6 +26,7 @@ struct MenuBar: View {
                 Spacer()
                 if !micAuthorized {
                     Button("Grant") {
+                        NSApp.activate(ignoringOtherApps: true)
                         AVCaptureDevice.requestAccess(for: .audio) { granted in
                             DispatchQueue.main.async {
                                 micAuthorized = granted
@@ -45,6 +46,7 @@ struct MenuBar: View {
                 Spacer()
                 if !speechAuthorized {
                     Button("Grant") {
+                        NSApp.activate(ignoringOtherApps: true)
                         SFSpeechRecognizer.requestAuthorization { status in
                             DispatchQueue.main.async {
                                 speechAuthorized = (status == .authorized)
