@@ -10,6 +10,7 @@ final class ScreenCapture {
         case cropFailed
     }
 
+    @MainActor
     func capturePrimaryDisplay() async throws -> CGImage {
         let displays = try await SCShareableContent.current.displays
 
@@ -33,6 +34,7 @@ final class ScreenCapture {
         )
     }
 
+    @MainActor
     func captureAllDisplays() async throws -> [CGImage] {
         let displays = try await SCShareableContent.current.displays
 
@@ -70,6 +72,7 @@ final class ScreenCapture {
         }
     }
     
+    @MainActor
     func captureRegion(_ rect: CGRect) async throws -> CGImage {
         let fullImage = try await capturePrimaryDisplay()
         guard let cropped = fullImage.cropping(to: rect) else {

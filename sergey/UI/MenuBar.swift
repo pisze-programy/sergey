@@ -8,6 +8,7 @@ struct MenuBar: View {
 
     @State private var micAuthorized = AVCaptureDevice.authorizationStatus(for: .audio) == .authorized
     @State private var speechAuthorized = SFSpeechRecognizer.authorizationStatus() == .authorized
+    @State private var screenAuthorized = CGPreflightScreenCaptureAccess()
     @State private var ollamaAvailable = false
     private let ollamaClient = OllamaClient()
     private let timer = Timer.publish(every: 5.0, on: .main, in: .common).autoconnect()
@@ -45,6 +46,14 @@ struct MenuBar: View {
                 }
             }
 
+            statusRow(title: "Screen Recording", isConnected: screenAuthorized) {
+                NSApp.activate(ignoringOtherApps: true)
+                CGRequestScreenCaptureAccess()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    screenAuthorized = CGPreflightScreenCaptureAccess()
+                }
+            }
+
             statusRow(title: "Ollama Server", isConnected: ollamaAvailable, showGrant: false) {}
 
             Divider()
@@ -79,6 +88,7 @@ struct MenuBar: View {
         .onAppear {
             micAuthorized = AVCaptureDevice.authorizationStatus(for: .audio) == .authorized
             speechAuthorized = SFSpeechRecognizer.authorizationStatus() == .authorized
+            screenAuthorized = CGPreflightScreenCaptureAccess()
             Task {
                 let available = await ollamaClient.isAvailable()
                 await MainActor.run { ollamaAvailable = available }

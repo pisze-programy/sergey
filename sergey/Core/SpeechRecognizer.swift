@@ -13,7 +13,10 @@ final class SpeechRecognizer {
         stopLiveTranscription()
         liveTranscriptionText = ""
 
-        guard let recognizer = speechRecognizer, recognizer.isAvailable else { return }
+        guard let recognizer = speechRecognizer, recognizer.isAvailable else {
+            print("❌ SpeechRecognizer: Recognizer not available")
+            return
+        }
 
         let audioEngine = AVAudioEngine()
         self.audioEngine = audioEngine
@@ -23,20 +26,34 @@ final class SpeechRecognizer {
         request.shouldReportPartialResults = true
 
         let inputNode = audioEngine.inputNode
-        let recordingFormat = inputNode.outputFormat(forBus: 0)
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
+        // Use the format of the input node itself for the tap
+        let recordingFormat = inputNode.inputFormat(forBus: 0)
+        
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak request] buffer, _ in
+            guard let request = request else { return }
             request.append(buffer)
         }
 
         do {
             audioEngine.prepare()
             try audioEngine.start()
+            print("✅ SpeechRecognizer: Audio engine started")
         } catch {
-            print("Audio engine start error: \(error)")
+            print("❌ SpeechRecognizer: Audio engine start error: \(error)")
             return
         }
 
         recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
+            if let error = error {
+                let nsError = error as NSError
+                // Error 216 or cancellation-related errors are expected when we manually stop the task
+                if nsError.domain == "kAFAssistantErrorDomain" && (nsError.code == 216 || nsError.code == -101) {
+                    print("ℹ️ SpeechRecognizer: Recognition session ended (normal).")
+                } else {
+                    print("❌ SpeechRecognizer: Recognition error: \(error)")
+                }
+                return
+            }
             if let result = result {
                 let text = result.bestTranscription.formattedString
                 self?.liveTranscriptionText = text
@@ -46,17 +63,20 @@ final class SpeechRecognizer {
     }
 
     func stopLiveTranscription() -> String {
-        audioEngine?.stop()
-        if audioEngine?.inputNode.numberOfInputs ?? 0 > 0 {
-            audioEngine?.inputNode.removeTap(onBus: 0)
-        }
-        audioEngine = nil
+        let final = liveTranscriptionText
+        liveTranscriptionText = ""
+
         recognitionRequest?.endAudio()
         recognitionRequest = nil
         recognitionTask?.cancel()
         recognitionTask = nil
-        let final = liveTranscriptionText
-        liveTranscriptionText = ""
+
+        if let engine = audioEngine {
+            engine.stop()
+            engine.inputNode.removeTap(onBus: 0)
+            audioEngine = nil
+        }
+        
         return final
     }
 
