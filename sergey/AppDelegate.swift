@@ -7,7 +7,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let audioRecorder = AudioRecorder()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        requestPermissions()
         registerHotkeys()
     }
 
@@ -15,30 +14,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         //
     }
 
-    private func requestPermissions() {
-        NSApp.activate(ignoringOtherApps: true)
-        AVCaptureDevice.requestAccess(for: .audio) { granted in
-            print("Microphone access granted: \(granted)")
-        }
-        
-        SFSpeechRecognizer.requestAuthorization { status in
-            print("Speech recognition authorization status: \(status.rawValue)")
-        }
-    }
-
     private func registerHotkeys() {
         HotkeyManager.shared.onVisionPressed = { [weak self] in
-            self?.agent.captureScreenOnly()
             _ = self?.audioRecorder.startRecording()
-            ResponseOverlayManager.shared.show(text: "Listening & capturing screen...", isLoading: true)
+            self?.agent.startListening()
         }
 
         HotkeyManager.shared.onVisionReleased = { [weak self] in
             guard let self = self else { return }
             let audioURL = self.audioRecorder.stopRecording()
             Task {
-                await self.agent.processVoiceAndScreen(audioURL: audioURL)
+                await self.agent.stopAndProcess(audioURL: audioURL)
             }
+        }
+
+        HotkeyManager.shared.onEscapePressed = {
+            ResponseOverlayManager.shared.hide()
         }
 
         HotkeyManager.shared.start()

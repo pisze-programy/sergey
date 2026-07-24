@@ -9,6 +9,7 @@ final class HotkeyManager {
 
     var onVisionPressed: (() -> Void)?
     var onVisionReleased: (() -> Void)?
+    var onEscapePressed: (() -> Void)?
 
     private var voiceActive = false
     private var visionActive = false
@@ -18,6 +19,14 @@ final class HotkeyManager {
             matching: [.flagsChanged]
         ) { [weak self] event in
             self?.handle(event)
+        }
+
+        NSEvent.addGlobalMonitorForEvents(
+            matching: [.keyDown]
+        ) { [weak self] event in
+            if event.keyCode == 53 { // ESC key
+                self?.onEscapePressed?()
+            }
         }
     }
 
