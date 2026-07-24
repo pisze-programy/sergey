@@ -22,7 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         HotkeyManager.shared.onVisionReleased = { [weak self] in
             guard let self = self else { return }
             Task {
-                await self.agent.stopAndProcess(audioURL: nil)
+                await self.agent.processVoiceAndScreen(audioURL: nil)
             }
         }
 

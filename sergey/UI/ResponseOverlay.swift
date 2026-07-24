@@ -8,11 +8,23 @@ final class OverlayWindow: NSWindow {
 final class ResponseOverlayManager {
     static let shared = ResponseOverlayManager()
     private var window: NSWindow?
+    var currentPlaceholder: String?
+
+    private let placeholders = [
+        "How can I help?", "Ready when you are.", "Standing by.", "What's next?", 
+        "Awaiting your command.", "Listening...", "All systems go.", 
+        "I'm all ears.", "Ready for tasking.", "Let's get to working."
+    ]
 
     func show(text: String, isLoading: Bool = false) {
         DispatchQueue.main.async {
+            if text.isEmpty && self.currentPlaceholder == nil {
+                self.currentPlaceholder = self.placeholders.randomElement()
+            } else if !text.isEmpty {
+                self.currentPlaceholder = nil
+            }
             let windowWidth: CGFloat = 440
-            let rootView = ResponseOverlayView(text: text, isLoading: isLoading, onClose: {
+            let rootView = ResponseOverlayView(text: text, isLoading: isLoading, placeholder: self.currentPlaceholder, onClose: {
                 self.hide()
             })
             let hostingView = NSHostingView(rootView: rootView)
@@ -86,7 +98,10 @@ final class ResponseOverlayManager {
 struct ResponseOverlayView: View {
     let text: String
     let isLoading: Bool
+    let placeholder: String?
     let onClose: () -> Void
+
+    @State private var animatedText: String = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -119,7 +134,7 @@ struct ResponseOverlayView: View {
             }
 
             ScrollView {
-                Text(text.isEmpty ? "Listening..." : text)
+                Text(text.isEmpty ? animatedText : text)
                     .font(.body)
                     .foregroundColor(text.isEmpty ? .secondary : .primary)
                     .textSelection(.enabled)
@@ -144,5 +159,16 @@ struct ResponseOverlayView: View {
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: 4)
         .padding(8)
+        .task(id: text) {
+            if text.isEmpty, let p = placeholder {
+                animatedText = ""
+                for char in p {
+                    try? await Task.sleep(nanoseconds: 50_000_000) // 50ms per char
+                    animatedText.append(char)
+                }
+            } else {
+                animatedText = text
+            }
+        }
     }
 }

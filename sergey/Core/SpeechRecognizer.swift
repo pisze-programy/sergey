@@ -37,20 +37,18 @@ final class SpeechRecognizer {
         do {
             audioEngine.prepare()
             try audioEngine.start()
-            print("✅ SpeechRecognizer: Audio engine started")
         } catch {
-            print("❌ SpeechRecognizer: Audio engine start error: \(error)")
+            print("SpeechRecognizer error: \(error)")
             return
         }
 
         recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
             if let error = error {
                 let nsError = error as NSError
-                // Error 216 or cancellation-related errors are expected when we manually stop the task
                 if nsError.domain == "kAFAssistantErrorDomain" && (nsError.code == 216 || nsError.code == -101) {
-                    print("ℹ️ SpeechRecognizer: Recognition session ended (normal).")
+                    print("SpeechRecognizer: Session ended normally.")
                 } else {
-                    print("❌ SpeechRecognizer: Recognition error: \(error)")
+                    print("SpeechRecognizer error: \(error)")
                 }
                 return
             }
