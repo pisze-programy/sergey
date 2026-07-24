@@ -166,11 +166,27 @@ Generate answer or execute action
 
 ## Local AI
 
-The application uses Ollama running locally:
+The application uses Ollama running locally. 
 
-```
-localhost:11434
-```
+### Configuration
+
+If your Ollama instance is running on a different machine or requires a specific IP, you can configure it without changing the code:
+
+1. **Via Environment Variable** (for terminal launches):
+   Set `OLLAMA_URL` before running the app:
+   ```bash
+   export OLLAMA_URL="http://your-ip-address:11434"
+   ./run_app
+   ```
+
+2. **Via macOS Defaults** (permanent configuration):
+   Use the `defaults` command to set the `OllamaBaseURL`:
+   ```bash
+   defaults write com.yourcompany.sergey OllamaBaseURL http://your-ip-address:11434
+   ```
+
+If no configuration is found, it defaults to `http://localhost:11434`.
+
 
 ## Hotkeys
 

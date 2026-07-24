@@ -2,10 +2,16 @@ import Foundation
 
 final class OllamaClient {
     private var baseURL: URL {
+        // 1. Check Process Environment (e.g., if run from Terminal)
+        if let envURL = ProcessInfo.processInfo.environment["OLLAMA_URL"], let url = URL(string: envURL) {
+            return url
+        }
+        // 2. Check UserDefaults (configured via 'defaults write')
         if let saved = UserDefaults.standard.string(forKey: "OllamaBaseURL"), let url = URL(string: saved) {
             return url
         }
-        return URL(string: "http://192.168.1.18:11434")!
+        // 3. Default to localhost
+        return URL(string: "http://localhost:11434")!
     }
 
     func generateResponse(prompt: String, images: [Data] = [], model: String = "gemma4:26b-a4b-it-q4_K_M") async throws -> String {
