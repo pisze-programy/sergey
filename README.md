@@ -165,6 +165,10 @@ The application uses Ollama running locally:
 localhost:11434
 ```
 
+## Hotkeys
+
+- **Cmd+Fn+Shift**: Capture screen and send to AI for analysis
+- **Cmd+Fn+Ctrl**: Start/stop voice recording
 
 ## Goal
 
