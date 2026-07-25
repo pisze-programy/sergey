@@ -1,115 +1,50 @@
 # Sergey
 
-An AI assistant that lives on your Mac. Press a hotkey, it sees what you see, listens to your voice, understands the context, and helps you complete tasks
+An AI assistant that lives on your Mac. Press a hotkey, it sees what you see, listens to your voice, understands the context, and helps you complete tasks.
 
 ## Concept
 
-Sergey runs in the background as a macOS menu bar application.
-
-The user can press a predefined hotkey to:
+Sergey runs in the background as a macOS menu bar application. The user can press a predefined hotkey to:
 
 1. Capture the current screen or selected area.
 2. Record a voice command.
 3. Convert speech to text.
-4. Send the screen context + user request to a local AI model.
-5. Receive an answer or execute an action.
+4. Send the screen context + user request to a local AI model (via Ollama).
+5. Receive an answer as a floating overlay.
 
-Example:
+### Example Workflow
 
-> "What does this text mean? Translate it."
-
-AI Buddy captures the selected area, understands the content, translates it, and displays the result.
-
-Another example:
-
-> "Write a reply to this email."
-
-AI Buddy analyzes the current application context, generates a response, and can insert the text automatically.
+> **User:** (Presses Hotkey) "What does this text mean? Translate it."
+> **Sergey:** Analyzes visual context, translates the content, and displays the result in a beautiful overlay.
 
 ---
 
-## Permissions
-
-## Permissions
+## Permissions & Requirements
 
 - **Microphone**: Required for recording voice commands.
 - **Speech Recognition**: Required for converting speech to text in real-time.
-- **Screen Recording**: Required via ScreenCaptureKit to capture screen context for the AI.
-- **Accessibility**: Required for global hotkeys (`Control + Option`, global `ESC`) to work system-wide.
+- **Screen Recording**: Required via ScreenCaptureKit to capture screen context.
+- **Accessibility**: Required for global hotkeys and macOS automation.
 
+**Technologies Used:**
 * **Swift / SwiftUI** — macOS application and UI
-* **ScreenCaptureKit** — screen capture and screenshots
-* **CGEvent** — keyboard and mouse automation
-* **Accessibility API** — interacting with native macOS UI elements
-* **AVFoundation** — microphone recording
-* **STT** — speech-to-text
-* **Ollama (localhost)** — local LLM and vision models
-
----
-
-## Architecture
-
-```
-User
- |
- | hotkey + voice
- v
-Swift macOS App
- |
- +-- ScreenCaptureKit
- |       |
- |       v
- |    Screenshot
- |
- +-- Speech-to-Text
- |       |
- |       v
- |    User prompt
- |
- +-- Ollama Vision / LLM
-         |
-         v
-    Response / Action
-         |
-         +-- Show answer
-         |
-         +-- Click / Type / Automate
-```
+* **Ollama** — Local LLM and vision models integration
+* **ScreenCaptureKit / AVFoundation** — Screen capture and audio recording
+* **Speech Framework** — Real-time speech-to-text (STT)
 
 ---
 
 ## Core Features
 
-### Screen Understanding
+### AI Interaction
+* **Vision Support**: Analyze screenshots using local vision models.
+* **Voice Prompting**: Use push-to-talk for natural language commands.
+* **Context Awareness**: The assistant receives both screen context and user request.
 
-* Capture full screen or multiple displays
-* Capture selected screen regions
-* Analyze visual context using local vision models
+### Automation & Tools
+* **macOS Automation**: Capability to interact with UI elements using Accessibility APIs.
 
-### Voice Interaction
-
-* Push-to-talk workflow
-* Local speech-to-text processing
-* Natural language commands
-
-### AI Reasoning
-
-The assistant receives:
-
-* Current screen context
-* Selected image region
-* User voice request
-
-and generates a contextual response.
-
-### macOS Automation
-
-The assistant can:
-
-* Click UI elements
-* Type text
-* Paste generated content
-* Interact with applications using Accessibility APIs
+* **Session History**: Persistent storage of conversation history (queries and answers) in `~/Library/Application Support/sergey/history.json`.
 
 ---
 
@@ -128,58 +63,31 @@ sergey/
 │   ├── SettingsStore.swift
 │   └── SpeechRecognizer.swift
 └── UI/
-    ├── MenuBar.swift
-    ├── ResponseOverlay.swift
-    ├── SettingsView.swift
-    └── SettingsWindowManager.swift
+    ├── Components/
+    │   └── MenuBar.swift
+    ├── Managers/
+    │   ├── HistoryWindowManager.swift
+    │   ├── ResponseOverlayManager.swift
+    │   └── SettingsWindowManager.swift
+    └── Views/
+        ├── HistoryView.swift
+        ├── ResponseOverlayView.swift
+        └── SettingsView.swift
 ```
 
 ---
 
-## Example Workflow
+## Configuration
 
-```
-Press hotkey
-      |
-      v
-Select screen area (optional)
-      |
-      v
-Speak command
-      |
-      v
-Speech-to-text
-      |
-      v
-Send image + prompt to Ollama
-      |
-      v
-Generate answer or execute action
-```
+Settings are managed via the application's menu bar and persist in `~/.sergey_config.json`.
+
+**Default Settings:**
+- **Ollama URL**: `http://localhost:11434`
+- **Model Name**: `gemma4:26b-a4b-it-q4_K_M`
 
 ---
-
-## Local AI
-
-The application uses Ollama running locally. 
-
-### Configuration
-
-**To configure the connection (URL or Model):**
-
-1.  Open the **Settings** window from the Menu Bar.
-2.  Update the **Ollama URL** and/or **Model Name**.
-3.  The settings are automatically saved to `~/.sergey_config.json` and persist even after application reinstallation.
-
-If no configuration is provided, it defaults to:
-- **URL**: `http://localhost:11434`
-- **Model**: `gemma4:26b-a4b-it-q4_K_M`
-
 
 ## Hotkeys
 
-- **Control + Option**: Capture screen and send to AI for analysis
-
-## Goal
-
-Create a private, local AI assistant that understands what you are doing on your Mac and helps you complete tasks through natural conversation.
+- **Control + Option**: Trigger screen capture and voice prompt.
+- **Escape**: Dismiss active overlays.
