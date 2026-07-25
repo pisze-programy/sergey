@@ -11,7 +11,8 @@ struct AIBuddyApp: App {
             MenuBar(
                onQuit: {
                    NSApplication.shared.terminate(nil)
-               }
+               },
+               onSettings: {}
            )
         }
     }

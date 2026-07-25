@@ -17,74 +17,85 @@ final class ResponseOverlayManager {
     ]
 
     func show(text: String, isLoading: Bool = false) {
-        DispatchQueue.main.async {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
             if text.isEmpty && self.currentPlaceholder == nil {
                 self.currentPlaceholder = self.placeholders.randomElement()
             } else if !text.isEmpty {
                 self.currentPlaceholder = nil
             }
+            
             let windowWidth: CGFloat = 440
-            let rootView = ResponseOverlayView(text: text, isLoading: isLoading, placeholder: self.currentPlaceholder, onClose: {
-                self.hide()
+            let rootView = ResponseOverlayView(text: text, isLoading: isLoading, placeholder: self.currentPlaceholder, onClose: { [weak self] in
+                self?.hide()
             })
             let hostingView = NSHostingView(rootView: rootView)
 
             let screenRect = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-            let x = screenRect.maxX - windowWidth - 16
+            let x = screenRect.maxX - windowWidth - 20
+            
+            let maxHeightLimit = screenRect.height / 4
+            let minHeightLimit: CGFloat = 150
 
             if let window = self.window {
                 window.contentView = hostingView
-                let fittingSize = hostingView.fittingSize
-                let height = min(max(fittingSize.height, 120), 700)
-                let y = screenRect.maxY - height - 16
-
-                NSAnimationContext.runAnimationGroup { context in
-                    context.duration = 0.25
-                    context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-                    window.animator().setFrame(NSRect(x: x, y: y, width: windowWidth, height: height), display: true)
-                }
-            } else {
-                let initialFittingSize = hostingView.fittingSize
-                let height = min(max(initialFittingSize.height, 120), 700)
+                hostingView.layoutSubtreeIfNeeded()
                 
-                // Start above screen (off-screen)
-                let startY = screenRect.maxY + 30
-                let targetY = screenRect.maxY - height - 16
+                let contentViewHeight = hostingView.fittingSize.height + 32 
+                let targetHeight = max(minHeightLimit, min(contentViewHeight, maxHeightLimit))
+                let targetY = screenRect.maxY - targetHeight - 20
 
-                let window = OverlayWindow(
-                    contentRect: NSRect(x: x, y: startY, width: windowWidth, height: height),
-                    styleMask: [.borderless, .nonactivatingPanel],
+                NSAnimationContext.runAnimationGroup({ context in
+                    context.duration = 0.4
+                    context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                    window.animator().setFrame(NSRect(x: x, y: targetY, width: windowWidth, height: targetHeight), display: true)
+                }, completionHandler: nil)
+            } else {
+                let startHeight: CGFloat = minHeightLimit
+                let startY = screenRect.maxY + 50 
+                
+                let newWindow = OverlayWindow(
+                    contentRect: NSRect(x: x, y: startY, width: windowWidth, height: startHeight),
+                    styleMask: [.borderless, 
+                                .nonactivatingPanel],
                     backing: .buffered,
                     defer: false
                 )
-                window.level = .floating
-                window.isOpaque = false
-                window.backgroundColor = .clear
-                window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-                window.contentView = hostingView
-                window.makeKeyAndOrderFront(nil)
-                self.window = window
+                newWindow.level = .floating
+                newWindow.isOpaque = false
+                newWindow.backgroundColor = .clear
+                newWindow.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+                newWindow.contentView = hostingView
+                newWindow.makeKeyAndOrderFront(nil)
+                self.window = newWindow
 
-                // Slide down animation (top to bottom)
-                NSAnimationContext.runAnimationGroup { context in
-                    context.duration = 0.3
-                    context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-                    window.animator().setFrame(NSRect(x: x, y: targetY, width: windowWidth, height: height), display: true)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    hostingView.layoutSubtreeIfNeeded()
+                    let contentViewHeight = hostingView.fittingSize.height + 32
+                    let targetHeight = max(minHeightLimit, min(contentViewHeight, maxHeightLimit))
+                    let targetY = screenRect.maxY - targetHeight - 20
+
+                    NSAnimationContext.runAnimationGroup({ context in
+                        context.duration = 0.5
+                        context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                        newWindow.animator().setFrame(NSRect(x: x, y: targetY, width: windowWidth, height: targetHeight), display:
+                            true)
+                    }, completionHandler: nil)
                 }
             }
         }
     }
 
     func hide() {
-        DispatchQueue.main.async {
-            guard let window = self.window else { return }
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self, let window = self.window else { return }
             let screenRect = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
             let currentFrame = window.frame
-            let targetY = screenRect.maxY + 30
+            let targetY = screenRect.maxY + 50
 
-            // Slide up animation (bottom to top)
             NSAnimationContext.runAnimationGroup({ context in
-                context.duration = 0.25
+                context.duration = 0.3
                 context.timingFunction = CAMediaTimingFunction(name: .easeIn)
                 window.animator().setFrame(NSRect(x: currentFrame.origin.x, y: targetY, width: currentFrame.width, height: currentFrame.height), display: true)
             }, completionHandler: {
@@ -113,7 +124,7 @@ struct ResponseOverlayView: View {
                 Spacer()
                 if isLoading {
                     ProgressView()
-                        .scaleEffect(0.7)
+                    .scaleEffect(0.7)
                 }
                 Button(action: {
                     NSPasteboard.general.clearContents()
@@ -123,26 +134,29 @@ struct ResponseOverlayView: View {
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
-                .help("Copy text to clipboard")
 
                 Button(action: onClose) {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
-                .help("Close")
             }
 
-            ScrollView {
-                Text(text.isEmpty ? animatedText : text)
-                    .font(.body)
-                    .foregroundColor(text.isEmpty ? .secondary : .primary)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .animation(.easeInOut(duration: 0.2), value: text)
+            ScrollView(.vertical, showsIndicators: true) {
+                Group {
+                    if text.isEmpty {
+                        Text(animatedText)
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                    } else {
+                        let attrString = makeLiteAttributedString(from: text)
+                        Text(attrString)
+                            .font(.body)
+                            .foregroundColor(.primary)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(minHeight: 80, maxHeight: 520)
         }
         .padding(16)
         .background(
@@ -163,12 +177,39 @@ struct ResponseOverlayView: View {
             if text.isEmpty, let p = placeholder {
                 animatedText = ""
                 for char in p {
-                    try? await Task.sleep(nanoseconds: 50_000_000) // 50ms per char
+                    try? await Task.sleep(nanoseconds: 30_000_000)
                     animatedText.append(char)
                 }
             } else {
                 animatedText = text
             }
         }
+    }
+    
+    private func makeLiteAttributedString(from text: String) -> AttributedString {
+        let mutableAttrString = NSMutableAttributedString(string: text)
+        let range = NSRange(location: 0, length: text.utf16.count)
+
+        var italicFont: NSFont = .systemFont(ofSize: 17)
+        let descriptor = NSFont.systemFont(ofSize: 17).fontDescriptor.withSymbolicTraits(.italic)
+        if let font = NSFont(descriptor: descriptor, size: 17) {
+            italicFont = font
+        }
+
+        let styles: [(pattern: String, font: NSFont)] = [
+            ("\\*\\*(.*?)\\*\\*", .boldSystemFont(ofSize: 17)),
+            ("(?<!\\*)\\*(?!\\*)(.*?)\\*(?!\\*)", italicFont)
+        ]
+
+        for style in styles {
+            let regex = try! NSRegularExpression(pattern: style.pattern, options: [])
+            regex.enumerateMatches(in: text, options: [], range: range) { match, _, _ in
+                if let m = match?.range(at: 0) {
+                    mutableAttrString.addAttribute(.font, value: style.font, range: m)
+                }
+            }
+        }
+
+        return AttributedString(mutableAttrString)
     }
 }

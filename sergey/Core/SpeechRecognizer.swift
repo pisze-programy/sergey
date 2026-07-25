@@ -10,7 +10,7 @@ final class SpeechRecognizer {
     private var liveTranscriptionText: String = ""
 
     func startLiveTranscription(onUpdate: @escaping (String) -> Void) {
-        stopLiveTranscription()
+        _ = stopLiveTranscription()
         liveTranscriptionText = ""
 
         guard let recognizer = speechRecognizer, recognizer.isAvailable else {
@@ -26,7 +26,6 @@ final class SpeechRecognizer {
         request.shouldReportPartialResults = true
 
         let inputNode = audioEngine.inputNode
-        // Use the format of the input node itself for the tap
         let recordingFormat = inputNode.inputFormat(forBus: 0)
         
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak request] buffer, _ in

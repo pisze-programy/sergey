@@ -5,16 +5,21 @@ final class OllamaClient {
         if let envURL = ProcessInfo.processInfo.environment["OLLAMA_URL"], let url = URL(string: envURL) {
             return url
         }
-        if let saved = UserDefaults.standard.string(forKey: "OllamaBaseURL"), let url = URL(string: saved) {
-            return url
-        }
-        return URL(string: "http://localhost:11434")!
+                return URL(string: "http://localhost:11434")!
     }
 
-    func generateResponse(prompt: String, images: [Data] = [], model: String = "gemma4:26b-a4b-it-q4_K_M") -> AsyncThrowingStream<String, Error> {
-        AsyncThrowingStream { continuation in
+    private var modelName: String {
+        if let envModel = ProcessInfo.processInfo.environment["OLLAMA_MODEL"], !envModel.isEmpty {
+            return envModel
+        }
+        return "gemma4:26b-a4b-it-q4_K_M"
+    }
+
+    func generateResponse(prompt: String, images: [Data] = []) -> AsyncThrowingStream<String, Error> {
+        let targetModel = self.modelName
+        return AsyncThrowingStream { continuation in
             Task {
-                print("[OllamaClient] Generating response (non-streaming). Model: \(model)")
+                print("[OllamaClient] Generating response (non-streaming). Model: \(targetModel)")
                 
                 var contentParts: [[String: Any]] = [["type": "text", "text": prompt]]
                 if !images.isEmpty {
@@ -33,7 +38,7 @@ final class OllamaClient {
                 ]
 
                 let body: [String: Any] = [
-                    "model": model,
+                    "model": targetModel,
                     "messages": messages,
                     "stream": false
                 ]

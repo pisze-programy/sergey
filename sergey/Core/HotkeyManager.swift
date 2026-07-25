@@ -36,8 +36,7 @@ final class HotkeyManager {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         let fn = flags.contains(.function)
         let shift = flags.contains(.shift)
-        let control = flags.contains(.control)
-
+        
         if fn && shift {
             if !visionActive {
                 visionActive = true
