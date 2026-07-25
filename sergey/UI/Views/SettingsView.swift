@@ -10,7 +10,6 @@ struct SettingsView: View {
                 .fontWeight(.bold)
                 .padding(.bottom, 10)
 
-            // Row 1: Label + Desc (left), Toggle (right)
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Enable Voice")
@@ -26,7 +25,6 @@ struct SettingsView: View {
 
             Divider()
 
-            // Row 2: Label + Desc, TextField below
             VStack(alignment: .leading, spacing: 4) {
                 Text("Ollama URL")
                     .font(.headline)
@@ -39,7 +37,6 @@ struct SettingsView: View {
 
             Divider()
 
-            // Row 3: Label + Desc, TextField below
             VStack(alignment: .leading, spacing: 4) {
                 Text("Model Name")
                     .font(.headline)

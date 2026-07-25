@@ -3,7 +3,7 @@ import Combine
 
 struct HistoryMessage: Codable, Identifiable {
     let id: UUID
-    let role: String // "user" or "assistant"
+    let role: String
     let content: String
     let timestamp: Date
 
@@ -42,7 +42,6 @@ class HistoryStore: ObservableObject {
         let appFolder = appSupport.appendingPathComponent("sergey")
         self.historyURL = appFolder.appendingPathComponent("history.json")
 
-        // Create directory if it doesn't exist
         try? FileManager.default.createDirectory(at: appFolder, withIntermediateDirectories: true)
 
         if let data = try? Data(contentsOf: historyURL),

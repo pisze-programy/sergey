@@ -1,18 +1,42 @@
 import AppKit
 import Carbon
 
+public enum HotkeyTrigger {
+    case escapePressed
+    case visionPressed
+    case visionReleased
+}
+
 final class HotkeyManager {
     static let shared = HotkeyManager()
-
-    var onVoicePressed: (() -> Void)?
-    var onVoiceReleased: (() -> Void)?
-
-    var onVisionPressed: (() -> Void)?
-    var onVisionReleased: (() -> Void)?
-    var onEscapePressed: (() -> Void)?
-
-    private var voiceActive = false
+    private let agent = Agent()
+    
+    private var actions: [HotkeyTrigger: () -> Void] = [:]
     private var visionActive = false
+    
+    public func registerHotkeys() {
+        registerAction(for: .visionPressed) { [weak self] in
+            self?.agent.startListening()
+        }
+
+        registerAction(for: .visionReleased) { [weak self] in
+            guard let self = self else { return }
+            Task {
+                await self.agent.executeRequest(audioURL: nil)
+            }
+        }
+
+        registerAction(for: .escapePressed) { [weak self] in
+            ResponseOverlayManager.shared.hide()
+            self?.agent.resetProcessing()
+        }
+
+        start()
+    }
+
+    public func registerAction(for trigger: HotkeyTrigger, action: @escaping () -> Void) {
+        actions[trigger] = action
+    }
 
     func start() {
         NSEvent.addGlobalMonitorForEvents(matching: [.flagsChanged, .keyDown]) { [weak self] event in
@@ -26,10 +50,10 @@ final class HotkeyManager {
     }
 
     private func handle(_ event: NSEvent) {
-        // ESC key
-        if event.keyCode == 53 {
+        let ESC = 53
+        if event.keyCode == ESC {
             DispatchQueue.main.async {
-                self.onEscapePressed?()
+                self.actions[.escapePressed]?()
             }
         }
 
@@ -37,11 +61,11 @@ final class HotkeyManager {
         if flags == [.control, .option] {
             if !visionActive {
                 visionActive = true
-                onVisionPressed?()
+                self.actions[.visionPressed]?()
             }
         } else if visionActive {
             visionActive = false
-            onVisionReleased?()
+            self.actions[.visionReleased]?()
         }
     }
 }

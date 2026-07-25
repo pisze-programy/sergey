@@ -7,7 +7,7 @@ enum OllamaError: Error, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .invalidConfiguration(let msg): return "Config Error: \(msg)"
+            case .invalidConfiguration(let msg): return "Config Error: \(msg)"
         }
     }
 }
@@ -33,6 +33,7 @@ final class OllamaClient {
                 }
                 
                 print("[OllamaClient] Generating response (non-streaming). Model: \(targetModel)")
+                print("[OllamaClient] Sending request to Ollama with prompt: \(prompt)")
                 
                 var contentParts: [[String: Any]] = [["type": "text", "text": prompt]]
                 if !images.isEmpty {
@@ -45,8 +46,12 @@ final class OllamaClient {
                     }
                 }
 
+                let manager = FileManager.default
+                let systemPromptURL = URL(fileURLWithPath: manager.currentDirectoryPath).appendingPathComponent("sergey/Prompts/OLLAMA_SYSTEM_PROMPT.md")
+                let systemRoleText = (try? String(contentsOf: systemPromptURL, encoding: .utf8)) ?? "You are Sergey, a concise macOS assistant."
+
                 let messages: [[String: Any]] = [
-                    ["role": "system", "content": "You are Sergey, a concise macOS assistant. Provide the shortest possible correct answer. Avoid all conversational filler, introductions, and conclusions. Use markdown bullets for lists as needed."],
+                    ["role": "system", "content": systemRoleText],
                     ["role": "user", "content": contentParts]
                 ]
 

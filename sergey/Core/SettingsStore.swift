@@ -17,23 +17,19 @@ class SettingsStore: ObservableObject {
     }
 
     private init() {
-        // Permanent storage in the user's home directory (~/.sergey_config.json)
         let home = FileManager.default.homeDirectoryForCurrentUser
         self.configURL = home.appendingPathComponent(".sergey_config.json")
 
-        // Default values
         let defaultURL = "http://localhost:11434"
         let defaultModel = "gemma4:26b-a4b-it-q4_K_M"
         let defaultVoice = true
 
-        // Attempt to load from file
         if let data = try? Data(contentsOf: configURL),
            let decoded = try? JSONDecoder().decode(SettingsData.self, from: data) {
             self.ollamaURL = decoded.ollamaURL
             self.modelName = decoded.modelName
             self.enableVoice = decoded.enableVoice
         } else {
-            // Fallback to defaults if file doesn't exist or is invalid
             self.ollamaURL = defaultURL
             self.modelName = defaultModel
             self.enableVoice = defaultVoice
@@ -58,7 +54,6 @@ class SettingsStore: ObservableObject {
     }
 }
 
-// Codable helper for JSON serialization
 struct SettingsData: Codable {
     let ollamaURL: String
     let modelName: String
