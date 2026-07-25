@@ -35,7 +35,7 @@ AI Buddy analyzes the current application context, generates a response, and can
 - **Microphone**: Required for recording voice commands.
 - **Speech Recognition**: Required for converting speech to text in real-time.
 - **Screen Recording**: Required via ScreenCaptureKit to capture screen context for the AI.
-- **Accessibility**: Required for global hotkeys (`Fn + Shift`, global `ESC`) to work system-wide.
+- **Accessibility**: Required for global hotkeys (`Control + Option`, global `ESC`) to work system-wide.
 
 * **Swift / SwiftUI** — macOS application and UI
 * **ScreenCaptureKit** — screen capture and screenshots
@@ -178,8 +178,7 @@ If no configuration is provided, it defaults to:
 
 ## Hotkeys
 
-- **Cmd+Fn+Shift**: Capture screen and send to AI for analysis
-- **Cmd+Fn+Ctrl**: Start/stop voice recording
+- **Control + Option**: Capture screen and send to AI for analysis
 
 ## Goal
 
