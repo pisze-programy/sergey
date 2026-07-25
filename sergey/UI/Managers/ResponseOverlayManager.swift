@@ -11,10 +11,14 @@ final class ResponseOverlayManager {
     var currentPlaceholder: String?
 
     private let placeholders = [
-        "How can I help?", "Ready when you are.", "Standing by.", "What's next?", 
-        "Awaiting your command.", "Listening...", "All systems go.", 
-        "I'm all ears.", "Ready for tasking.", "Let's get to working."
+        "How can I help?", "What is your command?", "How may I assist you?", "Anything else I can do?", 
+        "What needs analyzing?", "Ready for a task?", "Shall we start?", "What would you like to know?", 
+        "Is there something on your screen?", "What is your next request?"
     ]
+
+    func getRandomPlaceholder() -> String {
+        placeholders.randomElement()!
+    }
 
     func show(text: String, isLoading: Bool = false) {
         DispatchQueue.main.async { [weak self] in

@@ -31,12 +31,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         HotkeyManager.shared.onVisionReleased = { [weak self] in
             guard let self = self else { return }
             Task {
-                await self.agent.processVoiceAndScreen(audioURL: nil)
+                await self.agent.executeRequest(audioURL: nil)
             }
         }
 
-        HotkeyManager.shared.onEscapePressed = {
+        HotkeyManager.shared.onEscapePressed = { [weak self] in
             ResponseOverlayManager.shared.hide()
+            self?.agent.resetProcessing()
         }
 
         HotkeyManager.shared.start()

@@ -8,8 +8,14 @@ final class Agent {
 
     private var lastCapturedImage: CGImage?
     private var currentLivePrompt: String = ""
+    private var isProcessing = false
+
+    func resetProcessing() {
+        isProcessing = false
+    }
 
     func captureScreenOnly() {
+        guard !isProcessing else { return }
         print("[Agent] Starting screen capture only...")
         Task {
             do {
@@ -25,6 +31,11 @@ final class Agent {
     }
 
     func startListening() {
+        guard !isProcessing else { 
+            print("[Agent] Busy processing another request. Ignoring.")
+            return 
+        }
+        
         print("[Agent] Starting listening mode...")
         Task {
             speech.startLiveTranscription { [weak self] partialText in
@@ -34,17 +45,20 @@ final class Agent {
                 }
             }
 
+            // No automatic capture here. We rely on lastCapturedImage if it exists from captureScreenOnly()
             if self.currentLivePrompt.isEmpty {
-                ResponseOverlayManager.shared.show(text: "Ready for voice prompt.", isLoading: false)
+                ResponseOverlayManager.shared.show(text: ResponseOverlayManager.shared.getRandomPlaceholder(), isLoading: false)
             }
         }
     }
 
-    func processVoiceAndScreen(audioURL: URL?) async {
+    func executeRequest(audioURL: URL?) async {
+        guard !isProcessing else { return }
+        isProcessing = true
+        
+        defer { isProcessing = false }
+        
         print("[Agent] Stopping listening and processing...")
-        // Clear last captured image so we don't send stale screenshots in the STT flow
-        self.lastCapturedImage = nil
-
         let liveText = speech.stopLiveTranscription()
         let prompt = !liveText.isEmpty ? liveText : (!currentLivePrompt.isEmpty ? currentLivePrompt : "Analyze this screen and provide helpful context or answers about its content.")
         currentLivePrompt = ""
@@ -59,6 +73,8 @@ final class Agent {
             if let image = self.lastCapturedImage, let pngData = screen.imageToPNGData(image) {
                 imagesToSend.append(pngData)
                 print("[Agent] Attached screenshot to Ollama request.")
+            } else {
+                print("[Agent] No active screenshot found. Sending text-only request.")
             }
 
             var fullResponse = ""
@@ -67,6 +83,7 @@ final class Agent {
                 fullResponse += chunk
                 ResponseOverlayManager.shared.show(text: fullResponse, isLoading: true)
             }
+
             print("[Agent] Ollama finished streaming. Final Response: \(fullResponse)")
             ResponseOverlayManager.shared.show(text: fullResponse, isLoading: false)
             HistoryStore.shared.appendMessage(HistoryMessage(role: "assistant", content: fullResponse))
