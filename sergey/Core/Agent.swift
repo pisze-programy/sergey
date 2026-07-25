@@ -34,28 +34,23 @@ final class Agent {
                 }
             }
 
-            do {
-                print("[Agent] Capturing screen for context...")
-                let image = try await screen.capturePrimaryDisplay()
-                self.lastCapturedImage = image
-                print("[Agent] Screen captured and stored.")
-                if self.currentLivePrompt.isEmpty {
-                    ResponseOverlayManager.shared.show(text: "Screen captured. Ready for voice prompt.", isLoading: false)
-                }
-            } catch {
-                print("[Agent] Capture error: \(error)")
-                ResponseOverlayManager.shared.show(text: "Capture error: \(error.localizedDescription)", isLoading: false)
+            if self.currentLivePrompt.isEmpty {
+                ResponseOverlayManager.shared.show(text: "Ready for voice prompt.", isLoading: false)
             }
         }
     }
 
     func processVoiceAndScreen(audioURL: URL?) async {
         print("[Agent] Stopping listening and processing...")
+        // Clear last captured image so we don't send stale screenshots in the STT flow
+        self.lastCapturedImage = nil
+
         let liveText = speech.stopLiveTranscription()
         let prompt = !liveText.isEmpty ? liveText : (!currentLivePrompt.isEmpty ? currentLivePrompt : "Analyze this screen and provide helpful context or answers about its content.")
         currentLivePrompt = ""
 
         print("[Agent] Final Prompt: \"\(prompt)\"")
+        HistoryStore.shared.appendMessage(HistoryMessage(role: "user", content: prompt))
         ResponseOverlayManager.shared.show(text: "Prompt: \"\(prompt)\"\nThinking...", isLoading: true)
 
         do {
@@ -74,6 +69,7 @@ final class Agent {
             }
             print("[Agent] Ollama finished streaming. Final Response: \(fullResponse)")
             ResponseOverlayManager.shared.show(text: fullResponse, isLoading: false)
+            HistoryStore.shared.appendMessage(HistoryMessage(role: "assistant", content: fullResponse))
 
         } catch {
             print("[Agent] Agent error: \(error)")

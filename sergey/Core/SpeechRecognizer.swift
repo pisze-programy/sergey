@@ -14,7 +14,7 @@ final class SpeechRecognizer {
         liveTranscriptionText = ""
 
         guard let recognizer = speechRecognizer, recognizer.isAvailable else {
-            print("❌ SpeechRecognizer: Recognizer not available")
+            print("SpeechRecognizer: Recognizer not available")
             return
         }
 

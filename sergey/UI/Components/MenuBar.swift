@@ -7,14 +7,14 @@ struct MenuBar: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Button(action: {
-                // TODO: Open New Session
+                HistoryWindowManager.shared.show()
             }) {
-                Label("New Session", systemImage: "plus.circle")
+                Label("Session History", systemImage: "clock.arrow.circlepath")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.plain)
-            .padding(.vertical, 4)
-            .padding(.horizontal, 8)
+                .buttonStyle(.plain)
+                .padding(.vertical, 4)
+                .padding(.horizontal, 8)
 
             Divider()
 
