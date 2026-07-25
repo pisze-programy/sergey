@@ -9,7 +9,7 @@ final class SettingsWindowManager {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
 
-            let hostingView = NSHostingView(rootView: SettingsView(isPresented: .constant(true)))
+            let hostingView = NSHostingView(rootView: SettingsView())
 
             let windowWidth: CGFloat = 400
             let windowHeight: CGFloat = 500

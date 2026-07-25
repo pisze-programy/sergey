@@ -1,10 +1,10 @@
-# AI Buddy for macOS
+# Sergey
 
 An AI assistant that lives on your Mac. Press a hotkey, it sees what you see, listens to your voice, understands the context, and helps you complete tasks
 
 ## Concept
 
-AI Buddy runs in the background as a macOS menu bar application.
+Sergey runs in the background as a macOS menu bar application.
 
 The user can press a predefined hotkey to:
 
@@ -116,27 +116,22 @@ The assistant can:
 ## Project Structure
 
 ```
-AI-Buddy/
-│
-├── App/
-│   ├── AI_BuddyApp.swift
-│   └── AppDelegate.swift
-│
+sergey/
+├── sergeyApp.swift
+├── AppDelegate.swift
 ├── Core/
-│   ├── HotkeyManager.swift
-│   ├── ScreenCapture.swift
+│   ├── Agent.swift
 │   ├── AudioRecorder.swift
-│   ├── SpeechRecognizer.swift
+│   ├── HotkeyManager.swift
 │   ├── OllamaClient.swift
-│   └── Agent.swift
-│
-├── Automation/
-│   ├── MouseController.swift
-│   └── KeyboardController.swift
-│
+│   ├── ScreenCapture.swift
+│   ├── SettingsStore.swift
+│   └── SpeechRecognizer.swift
 └── UI/
     ├── MenuBar.swift
-    └── SelectionOverlay.swift
+    ├── ResponseOverlay.swift
+    ├── SettingsView.swift
+    └── SettingsWindowManager.swift
 ```
 
 ---
@@ -170,22 +165,15 @@ The application uses Ollama running locally.
 
 ### Configuration
 
-If your Ollama instance is running on a different machine or requires a specific IP, you can configure it without changing the code:
+**To configure the connection (URL or Model):**
 
-1. **Via Environment Variable** (for terminal launches):
-   Set `OLLAMA_URL` before running the app:
-   ```bash
-   export OLLAMA_URL="http://your-ip-address:11434"
-   ./run_app
-   ```
+1.  Open the **Settings** window from the Menu Bar.
+2.  Update the **Ollama URL** and/or **Model Name**.
+3.  The settings are automatically saved to `~/.sergey_config.json` and persist even after application reinstallation.
 
-2. **Via macOS Defaults** (permanent configuration):
-   Use the `defaults` command to set the `OllamaBaseURL`:
-   ```bash
-   defaults write com.yourcompany.sergey OllamaBaseURL http://your-ip-address:11434
-   ```
-
-If no configuration is found, it defaults to `http://localhost:11434`.
+If no configuration is provided, it defaults to:
+- **URL**: `http://localhost:11434`
+- **Model**: `gemma4:26b-a4b-it-q4_K_M`
 
 
 ## Hotkeys

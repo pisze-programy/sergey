@@ -1,12 +1,7 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @Binding var isPresented: Bool
-    
-    // Placeholder states
-    @State private var ollamaURL = "http://localhost:11434"
-    @State private var modelName = "gemma4:26b-a4b-it-q4_K_M"
-    @State private var enableVoice = true
+    @ObservedObject var store = SettingsStore.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -25,7 +20,7 @@ struct SettingsView: View {
                         .foregroundColor(.secondary)
                 }
                 Spacer()
-                Toggle("", isOn: $enableVoice)
+                Toggle("", isOn: $store.enableVoice)
                     .labelsHidden()
             }
 
@@ -38,7 +33,7 @@ struct SettingsView: View {
                 Text("The endpoint where your local Ollama server is running.")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                TextField("URL", text: $ollamaURL)
+                TextField("URL", text: $store.ollamaURL)
                     .textFieldStyle(.roundedBorder)
             }
 
@@ -51,8 +46,7 @@ struct SettingsView: View {
                 Text("The specific model to use for processing.")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                    .padding(.bottom, 2)
-                TextField("Model", text: $modelName)
+                TextField("Model", text: $store.modelName)
                     .textFieldStyle(.roundedBorder)
             }
 
@@ -61,9 +55,10 @@ struct SettingsView: View {
             HStack {
                 Spacer()
                 Button("Close") {
-                    isPresented = false
+                    SettingsWindowManager.shared.hide()
                 }
                 .keyboardShortcut(.defaultAction)
+                .buttonStyle(.borderedProminent)
             }
             .padding(.top, 10)
         }
@@ -73,5 +68,5 @@ struct SettingsView: View {
 }
 
 #Preview {
-    SettingsView(isPresented: .constant(true))
+    SettingsView()
 }
