@@ -41,65 +41,79 @@ final class Agent {
         defer { isProcessing = false }
         
         var STT_final = speech.stopLiveTranscription()
+        var agent_prompt = STT_final
         
-        if let template = loadPrompt(name: "AGENT_REACT_PROMPT") {
+        let systemPrompt = PromptManager.shared.loadPrompt(name: "OLLAMA_SYSTEM_PROMPT")!
+        if let template = PromptManager.shared.loadPrompt(name: "AGENT_REACT_PROMPT") {
             let inventory = SkillRegistry.shared.inventorySummary
-            STT_final = template
+            agent_prompt = template
                 .replacingOccurrences(of: "{{inventory}}", with: inventory)
                 .replacingOccurrences(of: "{{user_request}}", with: STT_final)
+                .replacingOccurrences(of: "{{session_history}}", with: HistoryStore.shared.getSessionHistory())
         }
 
-        print("[Agent] Augmented Prompt: \(STT_final)")
         HistoryStore.shared.appendMessage(HistoryMessage(role: "user", content: STT_final))
         ResponseOverlayManager.shared.show(text: MessagingManager.shared.thinkingPrompt, isLoading: true)
         
-        let systemPrompt = loadPrompt(name: "OLLAMA_SYSTEM_PROMPT")!
-
         do {
             var fullResponse = ""
-            for try await chunk in ollama.generateResponse(systemPrompt: systemPrompt, prompt: STT_final, images: []) {
+            for try await chunk in ollama.generateResponse(systemPrompt: systemPrompt, prompt: agent_prompt, images: []) {
                 fullResponse += chunk
                 ResponseOverlayManager.shared.show(text: fullResponse, isLoading: true)
             }
 
-            await handleActionIfPresent(response: fullResponse)
-            
-            ResponseOverlayManager.shared.show(text: fullResponse, isLoading: false)
-            HistoryStore.shared.appendMessage(HistoryMessage(role: "assistant", content: fullResponse))
-            print("[Agent] Ollama Response: \(fullResponse)")
+            if let actionRange = fullResponse.range(of: "ACTION:"), let thoughtRange = fullResponse.range(of: "Thought:") {
+                var thoughtPart = String(fullResponse[thoughtRange.upperBound...])
+                thoughtPart = String(thoughtPart[...actionRange.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+                let actionPart = String(fullResponse[actionRange.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+                
+                print("thoughtPart \(thoughtPart)")
+                print("actionPart \(actionPart)")
 
+                if !thoughtPart.isEmpty {
+                   ResponseOverlayManager.shared.show(text: thoughtPart, isLoading: true)
+                   HistoryStore.shared.appendMessage(HistoryMessage(role: "assistant", content: thoughtPart))
+                } else {
+                   ResponseOverlayManager.shared.show(text: MessagingManager.shared.thinkingPrompt, isLoading: true)
+                }
+
+                HistoryStore.shared.appendMessage(HistoryMessage(role: "system", content: actionPart))
+
+                await handleActionIfPresent(response: fullResponse)
+
+            } else {
+                HistoryStore.shared.appendMessage(HistoryMessage(role: "assistant", content: fullResponse))
+                ResponseOverlayManager.shared.show(text: fullResponse, isLoading: false)
+            }
+
+            print("[Agent] Processed successfully: \(fullResponse)")
         } catch {
             print("[Agent] Agent error: \(error)")
             ResponseOverlayManager.shared.show(text: MessagingManager.shared.genericErrorMessage, isLoading: false)
         }
     }
 
-    private func loadPrompt(name: String) -> String? {
-        let url = Bundle.main.url(forResource: name, withExtension: "md", subdirectory: "Prompts")
-        return try? String(contentsOf: url!, encoding: .utf8)
-    }
-
     private func handleActionIfPresent(response: String) async {
-        guard let actionRange = response.range(of: "ACTION:") else { return }
-        let instructionPart = response[actionRange.upperBound...]
-        
-        guard let openParenIdx = instructionPart.firstIndex(of: "("),
-              let closePorganIdx = instructionPart.firstIndex(of: ")"),
-              openParenIdx < closePorganIdx else { return }
-
-        let skillIdentifier = String(instructionPart[..<openParenIdx]).trimmingCharacters(in: .whitespacesAndNewlines)
-        let paramsString = String(instructionPart[instructionPart.index(after: openParenIdx)..<closePorganIdx])
-        
-        let parameters = parseParameters(paramsString)
-        
-        if let skill = SkillRegistry.shared.getSkill(name: skillIdentifier) {
-            do {
-                let result = try await skill.execute(parameters: parameters)
-                HistoryStore.shared.appendMessage(HistoryMessage(role: "user", content: "Observation: \(result)"))
-            } catch {
-                HistoryStore.shared.appendMessage(HistoryMessage(role: "user", content: "Observation Error: \(error)"))
-            }
-        }
+//        guard let actionRange = response.range(of: "ACTION:") else { return }
+//        let instructionPart = response[actionRange.upperBound...]
+//        
+//        guard let openParenIdx = instructionPart.firstIndex(of: "("),
+//              let closePorganIdx = instructionPart.firstIndex(of: ")"),
+//              openParenIdx < closePorganIdx else { return }
+//
+//        let skillIdentifier = String(instructionPart[..<openParenIdx]).trimmingCharacters(in: .whitespacesAndNewlines)
+//        let paramsString = String(instructionPart[instructionPart.index(after: openParenIdx)..<closePorganIdx])
+//        
+//        let parameters = parseParameters(paramsString)
+//        
+//        if let skill = SkillRegistry.shared.getSkill(name: skillIdentifier) {
+//            do {
+//                let result = try await skill.execute(parameters: parameters)
+//                HistoryStore.shared.appendMessage(HistoryMessage(role: "user", content: "Observation: \(result)"))
+//            } catch {
+//                HistoryStore.shared.appendMessage(HistoryMessage(role: "user", content: "Observation Error: \(error)"))
+//            }
+//        }
     }
 
     private func parseParameters(_ paramsString: String) -> [String: Any] {

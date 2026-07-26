@@ -36,7 +36,7 @@ final class ResponseOverlayManager {
                 window.contentView = hostingView
                 hostingView.layoutSubtreeIfNeeded()
 
-                let contentViewHeight = hostingView.fittingSize.height + 32
+                let contentViewHeight = hostingView.fittingSize.height
                 let targetHeight = max(minHeightLimit, min(contentViewHeight, maxHeightLimit))
                 let targetY = screenRect.maxY - targetHeight - 20
 
@@ -65,7 +65,7 @@ final class ResponseOverlayManager {
 
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     hostingView.layoutSubtreeIfNeeded()
-                    let contentViewHeight = hostingView.fittingSize.height + 32
+                    let contentViewHeight = hostingView.fittingSize.height
                     let targetHeight = max(minHeightLimit, min(contentViewHeight, maxHeightLimit))
                     let targetY = screenRect.maxY - targetHeight - 20
 

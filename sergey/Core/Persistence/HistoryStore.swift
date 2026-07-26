@@ -79,15 +79,31 @@ class HistoryStore: ObservableObject {
             self.save()
         }
     }
+    
+    func useSession(id: UUID) {
+        DispatchQueue.main.async {
+            if let index = self.data.sessions.firstIndex(where: { $0.id == id }) {
+                let session = self.data.sessions.remove(at: index)
+                self.data.sessions.append(session)
+                self.save()
+            }
+        }
+    }
+    
+    func getSessionHistory() -> String {
+        guard let latestSession = self.data.sessions.last, !latestSession.messages.isEmpty else {
+            return ""
+        }
+
+        return latestSession.messages
+           .map { "\($0.role.capitalized): \($0.content)" }
+           .joined(separator: "\n")
+    }
 
     func deleteMessage(sessionID: UUID, messageID: UUID) {
         DispatchQueue.main.async {
             if let index = self.data.sessions.firstIndex(where: { $0.id == sessionID }) {
                 self.data.sessions[index].messages.removeAll(where: { $0.id == messageID })
-                // If session has no messages left, maybe we should delete the session too? 
-                // The requirement didn't specify, but it's clean. 
-                // However, user specifically asked for "delete element in session" and "delete whole session".
-                // Let's keep empty sessions for now unless requested otherwise.
                 self.save()
             }
         }

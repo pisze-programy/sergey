@@ -106,6 +106,6 @@ public final class SkillRegistry {
     }
 	
 	public var inventorySummary: String {
-		return "Available Skills:\n" + skills.map { "\($0.key): \($0.value.metadata.description)" }.joined(separator: "\n")
+		return skills.map { "\($0.key): \($0.value.metadata.description)" }.joined(separator: "\n")
 	}
 }

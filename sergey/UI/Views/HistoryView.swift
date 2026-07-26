@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HistoryView: View {
     @ObservedObject var historyStore = HistoryStore.shared
+    @State private var selectedSessionID: UUID?
 
     var body: some View {
         NavigationSplitView {
@@ -10,16 +11,19 @@ struct HistoryView: View {
                     VStack(alignment: .leading) {
                         Text(session.createdAt.formatted(.dateTime.month().day().hour().minute()))
                             .font(.subheadline)
+                            .foregroundColor(.primary)
                         Text("\(session.messages.count) messages")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.primary)
                     }
                 }
                 .contextMenu {
+                    Button("Use this session") {
+                        historyStore.useSession(id: session.id)
+                    }
                     Button("Delete Session") {
                         historyStore.deleteSession(id: session.id)
-                    }
-                    .foregroundColor(.red)
+                    }.foregroundColor(.red)
                 }
             }
             .navigationTitle("Sessions")
@@ -27,21 +31,31 @@ struct HistoryView: View {
             if let sessionID = selectedSessionID,
                let session = historyStore.data.sessions.first(where: { $0.id == sessionID }) {
                 List(session.messages) { message in
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack {
-                            Text(message.role.uppercased())
+                    Group {
+                        if message.role == "system" {
+                            Text(message.content)
                                 .font(.caption2)
-                                .fontWeight(.bold)
-                                .foregroundColor(message.role == "user" ? .blue : .green)
-                            Spacer()
-                            Text(message.timestamp.formatted(.dateTime.hour().minute().second()))
-                                .font(.system(size: 10))
                                 .foregroundColor(.secondary)
+                                .italic()
+                                .padding(.vertical, 2)
+                        } else {
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack {
+                                    Text(message.role.uppercased())
+                                        .font(.caption2)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(message.role == "user" ? .blue : .green)
+                                    Spacer()
+                                    Text(message.timestamp.formatted(.dateTime.hour().minute().second()))
+                                        .font(.system(size: 10))
+                                        .foregroundColor(.secondary)
+                                }
+                                Text(message.content)
+                                    .font(.body)
+                            }
+                            .padding(.vertical, 4)
                         }
-                        Text(message.content)
-                            .font(.body)
                     }
-                    .padding(.vertical, 4)
                     .contextMenu {
                         Button("Copy Content") {
                             let pasteboard = NSPasteboard.general
@@ -64,8 +78,6 @@ struct HistoryView: View {
         }
         .frame(width: 600, height: 500)
     }
-
-    @State private var selectedSessionID: UUID?
 }
 
 #Preview {

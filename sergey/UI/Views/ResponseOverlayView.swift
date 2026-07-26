@@ -37,36 +37,32 @@ struct ResponseOverlayView: View {
             }
 
             ScrollView(.vertical, showsIndicators: true) {
-                Group {
-                    if text.isEmpty {
-                        Text(animatedText)
-                            .font(.body)
-                            .foregroundColor(.secondary)
-                    } else {
-                        let attrString = makeLiteAttributedString(from: text)
-                        Text(attrString)
-                            .font(.body)
-                            .foregroundColor(.primary)
+                VStack(alignment: .leading, spacing: 0) {
+                    Group {
+                        if text.isEmpty {
+                            Text(animatedText)
+                                .font(.body)
+                                .foregroundColor(.secondary)
+                        } else {
+                            let attrString = makeLiteAttributedString(from: text)
+                            Text(attrString)
+                                .font(.body)
+                                .foregroundColor(.primary)
+                        }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(16)
-        .background(
-            ZStack {
-                Color(NSColor.systemOrange).opacity(0.12)
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(.ultraThinMaterial)
-            }
-        )
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.orange.opacity(0.4), lineWidth: 1)
+                .strokeBorder(Color.orange.opacity(0.3), lineWidth: 1)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: 4)
-        .padding(8)
         .task(id: text) {
             if text.isEmpty, let p = placeholder {
                 animatedText = ""
