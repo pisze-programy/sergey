@@ -79,33 +79,21 @@ public final class SkillRegistry {
         if let name = name, let description = description {
             let skillFolder = url.deletingLastPathComponent()
             let folderName = skillFolder.lastPathComponent
-            let executorNames = ["\(folderName)_executor.swift", "executor.swift"]
-            var executorURL: URL?
+            let executorURL = skillFolder.appendingPathComponent("\(folderName).swift")
 
-            for exName in executorNames {
-                let potentialURL = skillFolder.appendingPathComponent(exName)
-                if FileManager.default.fileExists(atPath: potentialURL.path) {
-                    executorURL = potentialURL
-                    break
-                }
-            }
-
-            guard let finalExecutorURL = executorURL else {
-                print("[Skills] No executor found for \(name)")
+            guard FileManager.default.fileExists(atPath: executorURL.path) else {
+                print("[Skills] Error: Executor not found at \(executorURL.path)")
                 return
             }
-            
-            print("Registering: \(name) with \(finalExecutorURL.lastPathComponent)")
-            
+
             let descriptor = SkillDescriptor(
                 name: name,
                 metadata: SkillMetadata(name: name, description: description, parameters: [:]),
-                executorPath: finalExecutorURL.path,
+                executorPath: executorURL.path,
                 skillMdPath: url.path
             )
-            
+
             skills[name] = descriptor
-            print("[Skills] Registered skill: \(name)")
         }
     }
     
