@@ -4,24 +4,36 @@ An AI assistant that lives on your Mac. Press a hotkey, it sees what you see, li
 
 ## Concept
 
-Sergey runs in the background as a macOS menu bar application. The user can press a predefined hotkey to:
+Sergey is a modular AI assistant driven by **Skills**. Instead of hardcoded behaviors, Sergey uses LLM reasoning to trigger specific Skills (capabilities) based on your voice or screen context.
 
-1. Capture the current screen or selected area.
-2. Record a voice command.
-3. Convert speech to text.
-4. Send the screen context + user request to a local AI model (via Ollama).
-5. Receive an answer as a floating overlay.
+The user can press a predefined hotkey to:
+1. Activate the agent via push-to-talk.
+2. Provide visual/audio context.
+3. Allow the AI to execute **Skills** (e.g., screen capture, automation).
 
-### Example Workflow
+### Extensibility (Skills)
 
-> **User:** (Presses Hotkey) "What does this text mean? Translate it."
-> **Sergey:** Analyzes visual context, translates the content, and displays the result in a beautiful overlay.
+The core of Sergey is its ability to execute **Skills**. A Skill can be triggered by the LLM using the syntax:  
+`ACTION:skill_id(parameter1=value1,...)`
 
----
+This allows Sergey to perform complex tasks like interacting with the macOS UI, capturing specific parts of the screen, or running scripts without changing the core application logic.
 
-## Permissions & Requirements
+## Prompt Configuration
+
+The behavior of the Agent and the system prompt for Ollama are managed via markdown files in the `sergey/Prompts/` directory (e.g., `OLLAMA_SYSTEM_PROMPT.md`). This allows for easy fine-tuning of Sergey's personality and capabilities without recompiling the app.
+
+### Prompting Architecture
+
+The agent operates using a dual-layered prompting strategy:
+
+*   **System Prompt (`OLLAMA_SYSTEM_PROMPT.md`)**: Defines Sergey's core identity, personality, and global rules (e.g., "be concise"). This remains constant across all interactions.
+*   **Agent ReAct Prompt (`AGENT_REACT_PROMPT.md`)**: Provides dynamic context for the current task. It dynamically injects:
+    *   **Skill Inventory**: A list of currently available tools/skills.
+    *   **User Request**: The specific instruction from the user.
+    *   **ReAct Framework**: Instructions on how to reason using the **Thought $\to$ Action $\to$ Observation** pattern to interact with macOS via skills.
 
 - **Microphone**: Required for recording voice commands.
+
 - **Speech Recognition**: Required for converting speech to text in real-time.
 - **Screen Recording**: Required via ScreenCaptureKit to capture screen context.
 - **Accessibility**: Required for global hotkeys and macOS automation.
@@ -59,9 +71,14 @@ sergey/
 │   ├── AudioRecorder.swift
 │   ├── HotkeyManager.swift
 │   ├── OllamaClient.swift
-│   ├── ScreenCapture.swift
 │   ├── SettingsStore.swift
 │   └── SpeechRecognizer.swift
+├── Prompts/
+│   ├── AGENT_FALLBACK_PROMPT.md
+│   ├── AGENT_REACT_PROMPT.md
+│   └── OLLAMA_SYSTEM_PROMPT.md
+├── Skills/
+│   └── [Skill Modules]
 └── UI/
     ├── Components/
     │   └── MenuBar.swift

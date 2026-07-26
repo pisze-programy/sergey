@@ -23,8 +23,7 @@ final class OllamaClient {
         SettingsStore.shared.modelName
     }
 
-    func generateResponse(prompt: String, images: [Data] = []) -> AsyncThrowingStream<String, Error> {
-        let targetModel = modelName
+    func generateResponse(systemPrompt: String, prompt: String, images: [Data] = []) -> AsyncThrowingStream<String, Error> {
         return AsyncThrowingStream { continuation in
             Task {
                 guard let url = baseURL else {
@@ -32,7 +31,6 @@ final class OllamaClient {
                     return
                 }
                 
-                print("[OllamaClient] Generating response (non-streaming). Model: \(targetModel)")
                 print("[OllamaClient] Sending request to Ollama with prompt: \(prompt)")
                 
                 var contentParts: [[String: Any]] = [["type": "text", "text": prompt]]
@@ -46,17 +44,13 @@ final class OllamaClient {
                     }
                 }
 
-                let manager = FileManager.default
-                let systemPromptURL = URL(fileURLWithPath: manager.currentDirectoryPath).appendingPathComponent("sergey/Prompts/OLLAMA_SYSTEM_PROMPT.md")
-                let systemRoleText = (try? String(contentsOf: systemPromptURL, encoding: .utf8)) ?? "You are Sergey, a concise macOS assistant."
-
                 let messages: [[String: Any]] = [
-                    ["role": "system", "content": systemRoleText],
+                    ["role": "system", "content": systemPrompt],
                     ["role": "user", "content": contentParts]
                 ]
 
                 let body: [String: Any] = [
-                    "model": targetModel,
+                    "model": modelName,
                     "messages": messages,
                     "stream": false
                 ]
@@ -69,7 +63,10 @@ final class OllamaClient {
                 do {
                     let (data, response) = try await URLSession.shared.data(for: request)
                     guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-                        continuation.finish(throwing: NSError(domain: "OllamaClient", code: 0, userInfo: [NSLocalizedDescriptionKey: "HTTP error"]))
+                        let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
+                        let errorBody = String(data: data, encoding: .utf8) ?? "No error body"
+                        print("[OllamaClient] HTTP Error \(statusCode): \(errorBody)")
+                        continuation.finish(throwing: NSError(domain: "OllamaClient", code: 0, userInfo: [NSLocalizedDescriptionKey: "HTTP error \(statusCode)"]))
                         return
                     }
 

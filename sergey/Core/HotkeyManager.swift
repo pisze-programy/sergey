@@ -22,7 +22,7 @@ final class HotkeyManager {
         registerAction(for: .visionReleased) { [weak self] in
             guard let self = self else { return }
             Task {
-                await self.agent.executeRequest(audioURL: nil)
+                await self.agent.executeRequest()
             }
         }
 

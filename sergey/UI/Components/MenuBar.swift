@@ -1,9 +1,6 @@
 import SwiftUI
 
 struct MenuBar: View {
-    let onQuit: () -> Void
-    let onSettings: () -> Void
-
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Button(action: {
@@ -30,7 +27,9 @@ struct MenuBar: View {
 
             Divider()
 
-            Button(role: .destructive, action: onQuit) {
+            Button(role: .destructive, action: {
+                NSApplication.shared.terminate(nil)
+            }) {
                 Label("Quit", systemImage: "power")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -43,8 +42,5 @@ struct MenuBar: View {
 }
 
 #Preview {
-    MenuBar(
-        onQuit: {},
-        onSettings: {}
-    )
+    MenuBar()
 }

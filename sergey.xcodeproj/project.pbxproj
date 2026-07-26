@@ -8,10 +8,12 @@
 
 /* Begin PBXBuildFile section */
 		784B45B63015568D001EA662 /* Skills in Resources */ = {isa = PBXBuildFile; fileRef = 784B45B53015568D001EA662 /* Skills */; };
+		784B45CC3015EE8E001EA662 /* Prompts in Resources */ = {isa = PBXBuildFile; fileRef = 784B45CB3015EE8E001EA662 /* Prompts */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		784B45B53015568D001EA662 /* Skills */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Skills; path = sergey/Skills; sourceTree = "<group>"; };
+		784B45CB3015EE8E001EA662 /* Prompts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Prompts; path = sergey/Prompts; sourceTree = "<group>"; };
 		78520E0C3013612F000AB71E /* sergey.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = sergey.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -51,6 +53,7 @@
 		78520E033013612F000AB71E = {
 			isa = PBXGroup;
 			children = (
+				784B45CB3015EE8E001EA662 /* Prompts */,
 				784B45B53015568D001EA662 /* Skills */,
 				78520E0E3013612F000AB71E /* sergey */,
 				78520E0D3013612F000AB71E /* Products */,
@@ -129,6 +132,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				784B45CC3015EE8E001EA662 /* Prompts in Resources */,
 				784B45B63015568D001EA662 /* Skills in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

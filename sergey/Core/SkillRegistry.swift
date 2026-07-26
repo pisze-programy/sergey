@@ -24,9 +24,7 @@ public final class SkillRegistry {
     private(set) var skills: [String: SkillDescriptor] = [:]
     private let skillsBaseURL = Bundle.main.resourceURL?.appendingPathComponent("Skills") ?? URL(fileURLWithPath: "/")
     
-    private init() {
-        
-    }
+    private init() {}
 
     public func loadAllSkills() {
         let fileManager = FileManager.default
@@ -71,7 +69,7 @@ public final class SkillRegistry {
                     
                     switch key {
                         case "name": name = value
-                        case "description": description = value
+                        case 	"description": description = value
                         default: break // Expandable for param parsing
                     }
                 }
@@ -80,14 +78,29 @@ public final class SkillRegistry {
 
         if let name = name, let description = description {
             let skillFolder = url.deletingLastPathComponent()
-            let executorURL = skillFolder.appendingPathComponent("executor.swift")
+            let folderName = skillFolder.lastPathComponent
+            let executorNames = ["\(folderName)_executor.swift", "executor.swift"]
+            var executorURL: URL?
+
+            for exName in executorNames {
+                let potentialURL = skillFolder.appendingPathComponent(exName)
+                if FileManager.default.fileExists(atPath: potentialURL.path) {
+                    executorURL = potentialURL
+                    break
+                }
+            }
+
+            guard let finalExecutorURL = executorURL else {
+                print("[Skills] No executor found for \(name)")
+                return
+            }
             
-            print("[Skills] Registering: \(name)")
+            print("Registering: \(name) with \(finalExecutorURL.lastPathComponent)")
             
             let descriptor = SkillDescriptor(
                 name: name,
                 metadata: SkillMetadata(name: name, description: description, parameters: [:]),
-                executorPath: executorURL.path,
+                executorPath: finalExecutorURL.path,
                 skillMdPath: url.path
             )
             

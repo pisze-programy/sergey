@@ -6,13 +6,12 @@ final class Agent {
     private let speech = SpeechRecognizer()
     private let ollama = OllamaClient()
 
-    private var lastCapturedImage: CGImage?
     private var currentLivePrompt: String = ""
     private var isProcessing = false
 
     private let placeholders = [
-        "How can I help?", "What is your command?", "How may I assist you?", "Anything else I can do?", 
-        "What needs analyzing?", "Ready for a task?", "Shall we start?", "What would you like to know?", 
+        "How can I help?", "What is your command?", "How may I assist you?", "Anything else I can do?",
+        "What needs analyzing?", "Ready for a task?", "Shall we start?", "What would you like to know?",
         "Is there something on your screen?", "What is your next request?"
     ]
 
@@ -20,15 +19,10 @@ final class Agent {
         isProcessing = false
     }
 
-    func captureScreenOnly() {
-        guard !isProcessing else { return }
-        ResponseOverlayManager.shared.show(text: "Feature migration to Skills in progress...", isLoading: false)
-    }
-
     func startListening() {
-        guard !isProcessing else { 
+        guard !isProcessing else {
             print("[Agent] Busy processing another request. Ignoring.")
-            return 
+            return
         }
         
         Task {
@@ -40,50 +34,36 @@ final class Agent {
             }
 
             if self.currentLivePrompt.isEmpty {
-                let randomPlaceholder = self.placeholders.randomElement() ?? "How can I help?"
+                let randomPlaceholder = self.placeholders.randomElement()!
                 ResponseOverlayManager.shared.show(text: randomPlaceholder, isLoading: false)
             }
         }
     }
 
-    func executeRequest(audioURL: URL?) async {
+    func executeRequest() async {
         guard !isProcessing else { return }
         isProcessing = true
         
         defer { isProcessing = false }
         
-        let liveText = speech.stopLiveTranscription()
+        var STT_final = speech.stopLiveTranscription()
         
-        let fallbackPrompt: String
-        if let fileFallback = loadPrompt(name: "AGENT_FALLBACK_PROMPT.md") {
-            fallbackPrompt = fileFallback
-        } else {
-            fallbackPrompt = "Analyze this screen and provide helpful context or answers about its content."
-        }
-        
-        let prompt = !liveText.isEmpty ? liveText : (!currentLivePrompt.isEmpty ? currentLivePrompt : fallbackPrompt)
-        currentLivePrompt = ""
-
-        var augmentedPrompt = prompt 
-        if let template = loadPrompt(name: "AGENT_REACT_PROMPT.md") {
+        if let template = loadPrompt(name: "AGENT_REACT_PROMPT") {
             let inventory = SkillRegistry.shared.inventorySummary
-            augmentedPrompt = template
+            STT_final = template
                 .replacingOccurrences(of: "{{inventory}}", with: inventory)
-                .replacingOccurrences(of: "{{user_request}}", with: prompt)
+                .replacingOccurrences(of: "{{user_request}}", with: STT_final)
         }
 
-        print("[Agent] Augmented Prompt: \(augmentedPrompt)")
-        HistoryStore.shared.appendMessage(HistoryMessage(role: "user", content: augmentedPrompt))
-        ResponseOverlayManager.shared.show(text: "Thinking about: \(prompt)", isLoading: true)
+        print("[Agent] Augmented Prompt: \(STT_final)")
+        HistoryStore.shared.appendMessage(HistoryMessage(role: "user", content: STT_final))
+        ResponseOverlayManager.shared.show(text: "Thinking", isLoading: true)
+        
+        let systemPrompt = loadPrompt(name: "OLLAMA_SYSTEM_PROMPT")!
 
         do {
-            var imagesToSend: [Data] = []
-            if let image = self.lastCapturedImage, let pngData = self.imageToPNG(image) {
-                imagesToSend.append(pngData)
-            }
-
             var fullResponse = ""
-            for try await chunk in ollama.generateResponse(prompt: augmentedPrompt, images: imagesToSend) {
+            for try await chunk in ollama.generateResponse(systemPrompt: systemPrompt, prompt: STT_final, images: []) {
                 fullResponse += chunk
                 ResponseOverlayManager.shared.show(text: fullResponse, isLoading: true)
             }
@@ -102,8 +82,8 @@ final class Agent {
     }
 
     private func loadPrompt(name: String) -> String? {
-        let url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("sergey/Prompts/\(name)")
-        return try? String(contentsOf: url, encoding: .utf8)
+        let url = Bundle.main.url(forResource: name, withExtension: "md", subdirectory: "Prompts")
+        return try? String(contentsOf: url!, encoding: .utf8)
     }
 
     private func handleActionIfPresent(response: String) async {
@@ -144,12 +124,5 @@ final class Agent {
             }
         }
         return dict
-    }
-
-    private func imageToPNG(_ image: CGImage) -> Data? {
-        let uiImage = NSImage(cgImage: image, size: .zero)
-        guard let tiffData = uiImage.tiffRepresentation,
-              let bitmap = NSBitmapImageRep(data: tiffData) else { return nil }
-        return bitmap.representation(using: .png, properties: [:])
     }
 }
