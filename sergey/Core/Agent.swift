@@ -9,12 +9,6 @@ final class Agent {
     private var currentLivePrompt: String = ""
     private var isProcessing = false
 
-    private let placeholders = [
-        "How can I help?", "What is your command?", "How may I assist you?", "Anything else I can do?",
-        "What needs analyzing?", "Ready for a task?", "Shall we start?", "What would you like to know?",
-        "Is there something on your screen?", "What is your next request?"
-    ]
-
     func resetProcessing() {
         isProcessing = false
     }
@@ -29,13 +23,13 @@ final class Agent {
             speech.startLiveTranscription { [weak self] partialText in
                 if let self = self {
                     self.currentLivePrompt = partialText
-                    ResponseOverlayManager.shared.show(text: partialText.isEmpty ? "Listening..." : partialText, isLoading: true)
+                    ResponseOverlayManager.shared.show(text: partialText.isEmpty ? MessagingManager.shared.listeningPrompt : partialText, isLoading: true)
                 }
             }
 
             if self.currentLivePrompt.isEmpty {
-                let randomPlaceholder = self.placeholders.randomElement()!
-                ResponseOverlayManager.shared.show(text: randomPlaceholder, isLoading: false)
+                let randomPrompt = MessagingManager.shared.getRandomIdlePrompt()
+                ResponseOverlayManager.shared.show(text: randomPrompt, isLoading: false)
             }
         }
     }
@@ -57,7 +51,7 @@ final class Agent {
 
         print("[Agent] Augmented Prompt: \(STT_final)")
         HistoryStore.shared.appendMessage(HistoryMessage(role: "user", content: STT_final))
-        ResponseOverlayManager.shared.show(text: "Thinking", isLoading: true)
+        ResponseOverlayManager.shared.show(text: MessagingManager.shared.thinkingPrompt, isLoading: true)
         
         let systemPrompt = loadPrompt(name: "OLLAMA_SYSTEM_PROMPT")!
 
@@ -76,8 +70,7 @@ final class Agent {
 
         } catch {
             print("[Agent] Agent error: \(error)")
-            let errorMsg = String(describing: error)
-            ResponseOverlayManager.shared.show(text: "Error: \(errorMsg)", isLoading: false)
+            ResponseOverlayManager.shared.show(text: MessagingManager.shared.genericErrorMessage, isLoading: false)
         }
     }
 
