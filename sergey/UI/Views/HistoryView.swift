@@ -5,7 +5,7 @@ struct HistoryView: View {
 
     var body: some View {
         NavigationSplitView {
-            List(historyStore.data.sessions, selection: $selectedSessionID) { session in
+            List(historyStore.data.sessions.sorted(by: { $0.createdAt > $1.createdAt }), selection: $selectedSessionID) { session in
                 NavigationLink(value: session.id) {
                     VStack(alignment: .leading) {
                         Text(session.createdAt.formatted(.dateTime.month().day().hour().minute()))
@@ -14,6 +14,12 @@ struct HistoryView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
+                }
+                .contextMenu {
+                    Button("Delete Session") {
+                        historyStore.deleteSession(id: session.id)
+                    }
+                    .foregroundColor(.red)
                 }
             }
             .navigationTitle("Sessions")
@@ -36,6 +42,19 @@ struct HistoryView: View {
                             .font(.body)
                     }
                     .padding(.vertical, 4)
+                    .contextMenu {
+                        Button("Copy Content") {
+                            let pasteboard = NSPasteboard.general
+                            pasteboard.clearContents()
+                            pasteboard.setString(message.content, forType: .string)
+                        }
+                        Button("Delete Message") {
+                            if let sessionID = selectedSessionID {
+                                historyStore.deleteMessage(sessionID: sessionID, messageID: message.id)
+                            }
+                        }
+                        .foregroundColor(.red)
+                    }
                 }
                 .navigationTitle("Details")
             } else {

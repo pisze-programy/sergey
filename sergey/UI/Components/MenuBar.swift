@@ -4,6 +4,16 @@ struct MenuBar: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Button(action: {
+                HistoryStore.shared.startNewSession()
+            }) {
+                Label("Start New Session", systemImage: "plus")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+                .buttonStyle(.plain)
+                .padding(.vertical, 4)
+                .padding(.horizontal, 8)
+            
+            Button(action: {
                 HistoryWindowManager.shared.show()
             }) {
                 Label("Session History", systemImage: "clock.arrow.circlepath")
