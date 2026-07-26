@@ -1,35 +1,25 @@
 import SwiftUI
 import AppKit
 
-final class OverlayWindow: NSWindow {
+final class OverlayWindow: NSPanel {
     override var canBecomeKey: Bool { true }
 }
 
 final class ResponseOverlayManager {
     static let shared = ResponseOverlayManager()
-    private var window: NSWindow?
+    private var window: NSPanel?
     var currentPlaceholder: String?
-
-    private let placeholders = [
-        "How can I help?", "What is your command?", "How may I assist you?", "Anything else I can do?", 
-        "What needs analyzing?", "Ready for a task?", "Shall we start?", "What would you like to know?", 
-        "Is there something on your screen?", "What is your next request?"
-    ]
-
-    func getRandomPlaceholder() -> String {
-        placeholders.randomElement()!
-    }
 
     func show(text: String, isLoading: Bool = false) {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
-            
+
             if text.isEmpty && self.currentPlaceholder == nil {
-                self.currentPlaceholder = self.placeholders.randomElement()
+                self.currentPlaceholder = MessagingManager.shared.getRandomIdlePrompt()
             } else if !text.isEmpty {
                 self.currentPlaceholder = nil
             }
-            
+
             let windowWidth: CGFloat = 440
             let rootView = ResponseOverlayView(text: text, isLoading: isLoading, placeholder: self.currentPlaceholder, onClose: { [weak self] in
                 self?.hide()
@@ -38,15 +28,15 @@ final class ResponseOverlayManager {
 
             let screenRect = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
             let x = screenRect.maxX - windowWidth - 20
-            
+
             let maxHeightLimit = screenRect.height / 4
             let minHeightLimit: CGFloat = 150
 
             if let window = self.window {
                 window.contentView = hostingView
                 hostingView.layoutSubtreeIfNeeded()
-                
-                let contentViewHeight = hostingView.fittingSize.height + 32 
+
+                let contentViewHeight = hostingView.fittingSize.height + 32
                 let targetHeight = max(minHeightLimit, min(contentViewHeight, maxHeightLimit))
                 let targetY = screenRect.maxY - targetHeight - 20
 
@@ -57,16 +47,15 @@ final class ResponseOverlayManager {
                 }, completionHandler: nil)
             } else {
                 let startHeight: CGFloat = minHeightLimit
-                let startY = screenRect.maxY + 50 
-                
+                let startY = screenRect.maxY + 50
+
                 let newWindow = OverlayWindow(
                     contentRect: NSRect(x: x, y: startY, width: windowWidth, height: startHeight),
-                    styleMask: [.borderless, 
-                                .nonactivatingPanel],
+                    styleMask: [.borderless, .nonactivatingPanel],
                     backing: .buffered,
                     defer: false
                 )
-                newWindow.level = .floating
+                newWindow.level = .mainMenu
                 newWindow.isOpaque = false
                 newWindow.backgroundColor = .clear
                 newWindow.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]

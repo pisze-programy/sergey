@@ -13,5 +13,7 @@
         <key>NSAllowsLocalNetworking</key>
         <true/>
     </dict>
+    <key>LSUIElement</key>
+    <true/>
 </dict>
 </plist>
