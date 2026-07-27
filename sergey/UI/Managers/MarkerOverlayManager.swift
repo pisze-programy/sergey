@@ -50,7 +50,8 @@ final class MarkerOverlayManager {
         }
     }
 
-    // API for markers
+    
+    @MainActor
     func drawRect(_ rect: CGRect, color: Color = .red, lineWidth: CGFloat = 2.0, duration: TimeInterval? = nil) {
         let id = UUID()
         state.add(.rect(id: id, rect: rect, color: color, lineWidth: lineWidth))
@@ -59,6 +60,7 @@ final class MarkerOverlayManager {
         }
     }
 
+    @MainActor
     func drawText(_ text: String, at point: CGPoint, color: Color = .white, duration: TimeInterval? = nil) {
         let id = UUID()
         state.add(.text(id: id, text: text, point: point, color: color))
@@ -67,6 +69,7 @@ final class MarkerOverlayManager {
         }
     }
     
+    @MainActor
     func moveCursor(to point: CGPoint, duration: TimeInterval? = nil) {
         let id = UUID()
         state.add(.cursor(id: id, point: point))

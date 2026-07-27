@@ -3,9 +3,8 @@ import ScreenCaptureKit
 import CoreGraphics
 import AppKit
 
-final class ScreenCaptureExecutor: SkillExecutor {
-    
-    func execute(params: [String: Any]) async throws -> Any {
+final class ScreenCaptureExecutor: NSObject, SkillExecutor {
+    @objc func execute(params: [String: Any]) async throws -> Any {
         let mode = params["mode"] as? String ?? "primary"
         
         do {

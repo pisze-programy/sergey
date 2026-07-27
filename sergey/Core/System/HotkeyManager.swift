@@ -9,26 +9,26 @@ public enum HotkeyTrigger {
 
 final class HotkeyManager {
     static let shared = HotkeyManager()
-    private let agent = Agent()
+    private let taskExecutor = TaskExecutor()
     
     private var actions: [HotkeyTrigger: () -> Void] = [:]
     private var visionActive = false
     
     public func registerHotkeys() {
         registerAction(for: .visionPressed) { [weak self] in
-            self?.agent.startListening()
+            self?.taskExecutor.startListening()
         }
 
         registerAction(for: .visionReleased) { [weak self] in
             guard let self = self else { return }
             Task {
-                await self.agent.executeRequest()
+                await self.taskExecutor.executeRequest()
             }
         }
 
         registerAction(for: .escapePressed) { [weak self] in
             ResponseOverlayManager.shared.hide()
-            self?.agent.resetProcessing()
+            self?.taskExecutor.resetProcessing()
         }
 
         start()

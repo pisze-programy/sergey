@@ -11,11 +11,13 @@ public struct SkillDescriptor {
     public let metadata: SkillMetadata
     public let executorPath: String
     public let skillMdPath: String
+    public let executor: SkillExecutor?
 
     public func execute(parameters: [String: Any]) async throws -> Any {
-        // Note: Implementation of actual execution logic goes here in a future phase.
-        // For now, we return a placeholder to allow compilation.
-        return "Simulated execution of \(name) with parameters: \(parameters)"
+        if let executor = executor {
+            return try await executor.execute(params: parameters)
+        }
+        return SkillResult(success: false, error: "No executor registered for \(name)")
     }
 }
 
@@ -25,6 +27,19 @@ public final class SkillRegistry {
     private let skillsBaseURL = Bundle.main.resourceURL?.appendingPathComponent("Skills") ?? URL(fileURLWithPath: "/")
     
     private init() {}
+
+    public func setExecutor(for name: String, executor: SkillExecutor) {
+        if let skill = skills[name] {
+            let newDescriptor = SkillDescriptor(
+                name: skill.name,
+                metadata: skill.metadata,
+                executorPath: skill.executorPath,
+                skillMdPath: skill.skillMdPath,
+                executor: executor
+            )
+            skills[name] = newDescriptor
+        }
+    }
 
     public func loadAllSkills() {
         let fileManager = FileManager.default
@@ -44,7 +59,7 @@ public final class SkillRegistry {
             }
         }
         
-        print("[Skills] Skills loaded: \(skills.keys.sorted())")
+        print("[Skills] Skills loaded from metadata: \(skills.keys.sorted())")
     }
 
     private func registerSkill(at url: URL) throws {
@@ -69,8 +84,8 @@ public final class SkillRegistry {
                     
                     switch key {
                         case "name": name = value
-                        case 	"description": description = value
-                        default: break // Expandable for param parsing
+                        case "description": description = value
+                        default: break 
                     }
                 }
             }
@@ -90,7 +105,8 @@ public final class SkillRegistry {
                 name: name,
                 metadata: SkillMetadata(name: name, description: description, parameters: [:]),
                 executorPath: executorURL.path,
-                skillMdPath: url.path
+                skillMdPath: url.path,
+                executor: nil
             )
 
             skills[name] = descriptor

@@ -1,22 +1,42 @@
 import Foundation
+import Combine
 import Speech
 import AVFoundation
 
 final class SpeechRecognizer {
     private(set) var activeEngine: SpeechEngine
-
+    private var cancellables = Set<AnyCancellable>()
+    
     init() {
         self.activeEngine = SpeechRecognizer.createEngine()
+        setupObservers()
+    }
+
+    private func setupObservers() {
+        SettingsStore.shared.$sttEngineType
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.updateEngine()
+            }
+            .store(in: &cancellables)
+
+        SettingsStore.shared.$speechLanguage
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.updateEngine()
+            }
+            .store(in: &cancellables)
     }
 
     func updateEngine() {
-        print("[SpeechRecognizer] Called updateEngine()")
         self.activeEngine = SpeechRecognizer.createEngine()
     }
 
     private static func createEngine() -> SpeechEngine {
         let type = SettingsStore.shared.sttEngineType
-        print("[SpeechRecognizer] Creating engine for type: \(type)")
+        
         switch type {
         case .apple:
             return AppleSpeechEngine(language: SettingsStore.shared.speechLanguage)

@@ -3,7 +3,7 @@ import AVFoundation
 import Speech
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    let agent = Agent()
+    let taskExecutor = TaskExecutor()
     let audioRecorder = AudioRecorder()
     
     func applicationWillFinishLaunching(_ notification: Notification) {
@@ -16,12 +16,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        SkillRegistry.shared.loadAllSkills()
+        MarkerOverlayManager.shared.show()
+        SkillInitializer.shared.setup()
         HotkeyManager.shared.registerHotkeys()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         ResponseOverlayManager.shared.hide()
-        self.agent.resetProcessing()
+        MarkerOverlayManager.shared.hide()
+        self.taskExecutor.resetProcessing()
     }
 }

@@ -49,9 +49,9 @@ final class AppleSpeechEngine: SpeechEngine {
         recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
             if let error = error {
                 let nsError = error as NSError
-                if nsError.domain == "kAFAssistantErrorDomain" && (nsError.code == 216 || nsError.code == -101) {
-                    print("AppleSpeechEngine: Session ended normally.")
-                } else {
+                let isIgnorable = (nsError.domain == "kAFAssistantErrorDomain" && (nsError.code == 216 || nsError.code == -101)) ||
+                                  (nsError.domain == "kLSRErrorDomain" && nsError.code == 301)
+                if !isIgnorable {
                     print("AppleSpeechEngine error: \(error)")
                 }
                 return
@@ -70,7 +70,6 @@ final class AppleSpeechEngine: SpeechEngine {
 
         recognitionRequest?.endAudio()
         recognitionRequest = nil
-        recognitionTask?.cancel()
         recognitionTask = nil
 
         if let engine = audioEngine {

@@ -62,8 +62,7 @@ final class OllamaClient {
                     let (data, response) = try await URLSession.shared.data(for: request)
                     guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
                         let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
-                        let errorBody = String(data: data, encoding: .utf8) ?? "No error body"
-                        print("[OllamaClient] HTTP Error \(statusCode): \(errorBody)")
+                        let errorBody = String(data: data, encoding: .utf8)
                         continuation.finish(throwing: NSError(domain: "OllamaClient", code: 0, userInfo: [NSLocalizedDescriptionKey: "HTTP error \(statusCode)"]))
                         return
                     }
