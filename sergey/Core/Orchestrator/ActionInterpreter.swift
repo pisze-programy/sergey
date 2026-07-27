@@ -21,7 +21,7 @@ final class ActionInterpreter {
     }
 
     func interpretAction(from response: String) -> ActionInterpretationResult {
-        guard let actionRange = response.range(of: "ACTION:", options: .caseInsensitive) else {
+        guard let actionRange = response.range(of: "Action:", options: .caseInsensitive) else {
             return .noAction
         }
         

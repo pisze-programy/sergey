@@ -74,14 +74,14 @@ final class Agent {
                 }
             }
 
+            let cleanedText = ActionInterpreter.shared.cleanTextForDisplay(response.fullText)
+            
             if let action = actionPart {
                 HistoryStore.shared.appendMessage(HistoryMessage(role: "system", content: action))
-                await handleActionIfPresent(response: response.fullText)
+                await handleActionIfPresent(response: cleanedText)
             } else {
-                // No action found in structural parsing, treat as standard assistant message
-                // Note: we use the fullResponse captured during streaming to ensure consistency
                 HistoryStore.shared.appendMessage(HistoryMessage(role: "assistant", content: response.fullText))
-                ResponseOverlayManager.shared.show(text: response.fullText, isLoading: false)
+                ResponseOverlayManager.shared.show(text: cleanedText, isLoading: false)
             }
 
             print("[Agent] Processed successfully: \(response.fullText)")
