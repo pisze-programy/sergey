@@ -31,8 +31,6 @@ final class OllamaClient {
                     return
                 }
                 
-                print("[OllamaClient] Sending request to Ollama with prompt: \(prompt)")
-                
                 var contentParts: [[String: Any]] = [["type": "text", "text": prompt]]
                 if !images.isEmpty {
                     for imageData in images {

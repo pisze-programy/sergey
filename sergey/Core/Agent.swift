@@ -13,36 +13,6 @@ final class Agent {
         isProcessing = false
     }
 
-    private func checkAndSummarizeHistory() async {
-        guard let lastSession = HistoryStore.shared.data.sessions.last,
-              lastSession.messages.count > 10 else { return }
-        
-        let thresholdIndex = lastSession.messages.count - 5
-        let textToSummarize = lastSession.messages[..<thresholdIndex]
-            .map { "\($0.role): \($0.content)" }
-            .joined(separator: "\n")
-        
-        print("[Agent] History threshold reached. Summarizing...")
-        ResponseOverlayManager.shared.show(text: "Summarizing history...", isLoading: true)
-
-        let summaryPrompt = "Summarize the following conversation history into a single, concise paragraph that maintains all essential context: \n\n\(textToSummarize)"
-        let systemPrompt = PromptManager.shared.loadPrompt(name: "OLLAMA_SYSTEM_PROMPT") ?? ""
-
-        do {
-            var summary = ""
-            for try await chunk in ollama.generateResponse(systemPrompt: systemPrompt, prompt: summaryPrompt, images: []) {
-                summary += chunk
-            }
-            
-            if !summary.isEmpty {
-                HistoryStore.shared.compressMessages(upToIndex: thresholdIndex - 1, summary: summary)
-                print("[Agent] History summarized successfully.")
-            }
-        } catch {
-            print("[Agent] Failed to summarize history: \(error)")
-        }
-    }
-
     func startListening() {
         guard !isProcessing else {
             print("[Agent] Busy processing another request. Ignoring.")
@@ -66,59 +36,55 @@ final class Agent {
 
     func executeRequest() async {
         guard !isProcessing else { return }
+        
         isProcessing = true
         
         defer { isProcessing = false }
 
-        await checkAndSummarizeHistory()
+        let condensedHistory = await HistoryManager.shared.checkAndSummarizeIfNeeded()
         
-        var STT_final = speech.stopLiveTranscription()
-        var agent_prompt = STT_final
+        let STT_final = speech.stopLiveTranscription()
         
-        let systemPrompt = PromptManager.shared.loadPrompt(name: "OLLAMA_SYSTEM_PROMPT")!
-        if let template = PromptManager.shared.loadPrompt(name: "AGENT_REACT_PROMPT") {
-            let inventory = SkillRegistry.shared.inventorySummary
-            agent_prompt = template
-                .replacingOccurrences(of: "{{inventory}}", with: inventory)
-                .replacingOccurrences(of: "{{user_request}}", with: STT_final)
-                .replacingOccurrences(of: "{{session_history}}", with: HistoryStore.shared.getSessionHistory())
-        }
-
+        let systemPrompt = PromptAssembler.shared.assembleSystemPrompt()
+        let agent_prompt = PromptAssembler.shared.assembleAgentPrompt(userRequest: STT_final, providedHistory: condensedHistory)
+        
         HistoryStore.shared.appendMessage(HistoryMessage(role: "user", content: STT_final))
         ResponseOverlayManager.shared.show(text: MessagingManager.shared.thinkingPrompt, isLoading: true)
         
         do {
             var fullResponse = ""
-            for try await chunk in ollama.generateResponse(systemPrompt: systemPrompt, prompt: agent_prompt, images: []) {
-                fullResponse += chunk
-                ResponseOverlayManager.shared.show(text: fullResponse, isLoading: true)
-            }
+            let response = try await LLMService.shared.generateScopedResponse(
+                systemPrompt: systemPrompt,
+                prompt: agent_prompt,
+                onChunk: { chunk in
+                    fullResponse += chunk
+                    ResponseOverlayManager.shared.show(text: fullResponse, isLoading: true)
+                }
+            )
 
-            if let actionRange = fullResponse.range(of: "ACTION:"), let thoughtRange = fullResponse.range(of: "Thought:") {
-                var thoughtPart = String(fullResponse[thoughtRange.upperBound...])
-                thoughtPart = String(thoughtPart[...actionRange.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
-                let actionPart = String(fullResponse[actionRange.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
-                
-                print("thoughtPart \(thoughtPart)")
-                print("actionPart \(actionPart)")
+            let thoughtPart = response.thought
+            let actionPart = response.action
 
-                if !thoughtPart.isEmpty {
-                   ResponseOverlayManager.shared.show(text: thoughtPart, isLoading: true)
-                   HistoryStore.shared.appendMessage(HistoryMessage(role: "assistant", content: thoughtPart))
+            if let thought = thoughtPart {
+                if !thought.isEmpty {
+                   ResponseOverlayManager.shared.show(text: thought, isLoading: true)
+                   HistoryStore.shared.appendMessage(HistoryMessage(role: "assistant", content: thought))
                 } else {
                    ResponseOverlayManager.shared.show(text: MessagingManager.shared.thinkingPrompt, isLoading: true)
                 }
-
-                HistoryStore.shared.appendMessage(HistoryMessage(role: "system", content: actionPart))
-
-                await handleActionIfPresent(response: fullResponse)
-
-            } else {
-                HistoryStore.shared.appendMessage(HistoryMessage(role: "assistant", content: fullResponse))
-                ResponseOverlayManager.shared.show(text: fullResponse, isLoading: false)
             }
 
-            print("[Agent] Processed successfully: \(fullResponse)")
+            if let action = actionPart {
+                HistoryStore.shared.appendMessage(HistoryMessage(role: "system", content: action))
+                await handleActionIfPresent(response: response.fullText)
+            } else {
+                // No action found in structural parsing, treat as standard assistant message
+                // Note: we use the fullResponse captured during streaming to ensure consistency
+                HistoryStore.shared.appendMessage(HistoryMessage(role: "assistant", content: response.fullText))
+                ResponseOverlayManager.shared.show(text: response.fullText, isLoading: false)
+            }
+
+            print("[Agent] Processed successfully: \(response.fullText)")
         } catch {
             print("[Agent] Agent error: \(error)")
             ResponseOverlayManager.shared.show(text: MessagingManager.shared.genericErrorMessage, isLoading: false)
@@ -126,42 +92,6 @@ final class Agent {
     }
 
     private func handleActionIfPresent(response: String) async {
-//        guard let actionRange = response.range(of: "ACTION:") else { return }
-//        let instructionPart = response[actionRange.upperBound...]
-//        
-//        guard let openParenIdx = instructionPart.firstIndex(of: "("),
-//              let closePorganIdx = instructionPart.firstIndex(of: ")"),
-//              openParenIdx < closePorganIdx else { return }
-//
-//        let skillIdentifier = String(instructionPart[..<openParenIdx]).trimmingCharacters(in: .whitespacesAndNewlines)
-//        let paramsString = String(instructionPart[instructionPart.index(after: openParenIdx)..<closePorganIdx])
-//        
-//        let parameters = parseParameters(paramsString)
-//        
-//        if let skill = SkillRegistry.shared.getSkill(name: skillIdentifier) {
-//            do {
-//                let result = try await skill.execute(parameters: parameters)
-//                HistoryStore.shared.appendMessage(HistoryMessage(role: "user", content: "Observation: \(result)"))
-//            } catch {
-//                HistoryStore.shared.appendMessage(HistoryMessage(role: "user", content: "Observation Error: \(error)"))
-//            }
-//        }
-    }
-
-    private func parseParameters(_ paramsString: String) -> [String: Any] {
-        var dict: [String: Any] = [:]
-        let pairs = paramsString.components(separatedBy: ",")
-        for pair in pairs {
-            let kv = pair.components(separatedBy: "=")
-            if kv.count == 2 {
-                let key = kv[0].trimmingCharacters(in: .whitespaces)
-                var val = kv[1].trimmingCharacters(in: .whitespaces)
-                if (val.hasPrefix("\"") && val.hasSuffix("\"")) || (val.hasPrefix("'") && val.hasSuffix("'")) {
-                    val = String(val.dropFirst().dropLast())
-                }
-                dict[key] = val
-            }
-        }
-        return dict
+        //
     }
 }
