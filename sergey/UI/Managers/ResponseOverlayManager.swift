@@ -2,7 +2,13 @@ import SwiftUI
 import AppKit
 
 final class OverlayWindow: NSPanel {
-    override var canBecomeKey: Bool { true }
+    override var canBecomeKey: Bool {
+        return false
+    }
+
+    override var canBecomeMain: Bool {
+        return false
+    }
 }
 
 final class ResponseOverlayManager {
