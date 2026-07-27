@@ -109,6 +109,27 @@ class HistoryStore: ObservableObject {
         }
     }
 
+    /// Compresses session history, replacing old messages with a single summary.
+    func compressMessages(upToIndex index: Int, summary: String) {
+        DispatchQueue.main.async {
+            guard var latestSession = self.data.sessions.last else { return }
+            
+            let countToRemove = index + 1
+            guard latestSession.messages.count > countToRemove else { return }
+            latestSession.messages.removeFirst(countToRemove)
+            
+            let summaryMessage = HistoryMessage(
+                role: "system", 
+                content: "Summary of previous conversation context: \(summary)"
+            )
+            latestSession.messages.insert(summaryMessage, at: 0)
+            
+            self.data.sessions[self.data.sessions.count - 1] = latestSession
+            self.save()
+            print("[HistoryStore] Session compressed. Messages remaining: \(latestSession.messages.count)")
+        }
+    }
+
     private func save() {
         do {
             let encoder = JSONEncoder()

@@ -13,6 +13,36 @@ final class Agent {
         isProcessing = false
     }
 
+    private func checkAndSummarizeHistory() async {
+        guard let lastSession = HistoryStore.shared.data.sessions.last,
+              lastSession.messages.count > 10 else { return }
+        
+        let thresholdIndex = lastSession.messages.count - 5
+        let textToSummarize = lastSession.messages[..<thresholdIndex]
+            .map { "\($0.role): \($0.content)" }
+            .joined(separator: "\n")
+        
+        print("[Agent] History threshold reached. Summarizing...")
+        ResponseOverlayManager.shared.show(text: "Summarizing history...", isLoading: true)
+
+        let summaryPrompt = "Summarize the following conversation history into a single, concise paragraph that maintains all essential context: \n\n\(textToSummarize)"
+        let systemPrompt = PromptManager.shared.loadPrompt(name: "OLLAMA_SYSTEM_PROMPT") ?? ""
+
+        do {
+            var summary = ""
+            for try await chunk in ollama.generateResponse(systemPrompt: systemPrompt, prompt: summaryPrompt, images: []) {
+                summary += chunk
+            }
+            
+            if !summary.isEmpty {
+                HistoryStore.shared.compressMessages(upToIndex: thresholdIndex - 1, summary: summary)
+                print("[Agent] History summarized successfully.")
+            }
+        } catch {
+            print("[Agent] Failed to summarize history: \(error)")
+        }
+    }
+
     func startListening() {
         guard !isProcessing else {
             print("[Agent] Busy processing another request. Ignoring.")
@@ -39,6 +69,8 @@ final class Agent {
         isProcessing = true
         
         defer { isProcessing = false }
+
+        await checkAndSummarizeHistory()
         
         var STT_final = speech.stopLiveTranscription()
         var agent_prompt = STT_final
