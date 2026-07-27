@@ -1,13 +1,39 @@
 import Foundation
 import CoreGraphics
 import AppKit
+import Combine
 
 final class Agent {
     private let speech = SpeechRecognizer()
     private let ollama = OllamaClient()
+    private var cancellables = Set<AnyCancellable>()
 
     private var currentLivePrompt: String = ""
     private var isProcessing = false
+
+    init() {
+        setupObservers()
+    }
+
+    private func setupObservers() {
+        SettingsStore.shared.$sttEngineType
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                print("[Agent] Engine type changed, updating engine...")
+                self?.speech.updateEngine()
+            }
+            .store(in: &cancellables)
+
+        SettingsStore.shared.$speechLanguage
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                print("[Agent] Language changed, updating engine...")
+                self?.speech.updateEngine()
+            }
+            .store(in: &cancellables)
+    }
 
     func resetProcessing() {
         isProcessing = false
@@ -45,6 +71,19 @@ final class Agent {
         
         let STT_final = speech.stopLiveTranscription()
         
+        var capturedImages: [Data] = []
+        do {
+            let captureExecutor = ScreenCaptureExecutor()
+            if let result = try await captureExecutor.execute(params: ["mode": "primary"]) as? SkillResult, 
+               result.success, 
+               let imageData = result.data as? Data {
+                capturedImages.append(imageData)
+                print("[Agent] Captured screenshot successfully")
+            }
+        } catch {
+            print("[Agent] Failed to capture screenshot: \(error)")
+        }
+
         let systemPrompt = PromptAssembler.shared.assembleSystemPrompt()
         let agent_prompt = PromptAssembler.shared.assembleAgentPrompt(userRequest: STT_final, providedHistory: condensedHistory)
         
@@ -56,6 +95,7 @@ final class Agent {
             let response = try await LLMService.shared.generateScopedResponse(
                 systemPrompt: systemPrompt,
                 prompt: agent_prompt,
+                images: capturedImages,
                 onChunk: { chunk in
                     fullResponse += chunk
                     ResponseOverlayManager.shared.show(text: fullResponse, isLoading: true)

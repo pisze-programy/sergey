@@ -3,7 +3,12 @@ import AVFoundation
 import Speech
 
 final class AppleSpeechEngine: SpeechEngine {
-    private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "pl-PL"))
+    private let speechRecognizer: SFSpeechRecognizer?
+
+    init(language: String = "pl-PL") {
+        self.speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: language))
+    }
+
     private var audioEngine: AVAudioEngine?
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?

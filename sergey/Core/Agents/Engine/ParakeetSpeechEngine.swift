@@ -1,7 +1,7 @@
 import Foundation
 import AVFoundation
 
-final class ParakeintSpeechEngine: SpeechEngine {
+final class ParakeetSpeechEngine: SpeechEngine {
     private var audioEngine: AVAudioEngine?
     private var audioBufferQueue: [AVAudioPCMBuffer] = []
     private var isProcessing = false
