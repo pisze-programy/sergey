@@ -4,6 +4,7 @@ import AppKit
 
 class StatusOverlayManager: ObservableObject {
     @Published var overlayText: String = ""
+    @Published var isActive: Bool = true
     private var panel: NSPanel?
     
     init() {
@@ -43,6 +44,10 @@ class StatusOverlayManager: ObservableObject {
     
     func updateText(_ text: String) {
         overlayText = text
+    }
+
+    func handleMenuClick() {
+        print("Menu button clicked!")
     }
     
     func show() {
