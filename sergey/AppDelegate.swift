@@ -16,14 +16,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        MarkerOverlayManager.shared.show()
         SkillInitializer.shared.setup()
         HotkeyManager.shared.registerHotkeys()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         ResponseOverlayManager.shared.hide()
-        MarkerOverlayManager.shared.hide()
         self.taskExecutor.resetProcessing()
     }
 }
