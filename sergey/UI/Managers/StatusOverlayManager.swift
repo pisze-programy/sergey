@@ -64,8 +64,10 @@ class StatusOverlayManager: ObservableObject {
         )
 
         newPanel.isFloatingPanel = true
+        newPanel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         newPanel.level = .mainMenu + 1
         newPanel.backgroundColor = .clear
+        newPanel.sharingType = .none
         newPanel.isOpaque = false
         newPanel.ignoresMouseEvents = false
 

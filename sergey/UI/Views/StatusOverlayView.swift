@@ -6,8 +6,6 @@ struct StatusOverlayView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
-                Spacer()
-                
                 HStack(spacing: 12) {
                     Circle()
                         .fill(manager.isActive ? Color.green : Color.gray)
@@ -33,15 +31,14 @@ struct StatusOverlayView: View {
                     manager.isExpanded ? nil : manager.showExpansion()
                 }
                 .padding(.horizontal, 15)
-                .padding(.vertical, 8)
                 .frame(width: 350, height: 55, alignment: .center)
             }
-            .padding(.horizontal, 5)
             
             if manager.isExpanded {
                 ListPlaceholderView()
                     .frame(maxHeight: 300)
-                    .padding(.vertical, 8)
+                    .padding(.top, 15)
+                    .padding(.bottom, 30)
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
@@ -94,5 +91,7 @@ struct ListPlaceholderView: View {
             }
             .padding(.horizontal, 15)
         }
+        .scrollIndicators(.hidden)
+        .clipped()
     }
 }
