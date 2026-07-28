@@ -80,7 +80,9 @@ class StatusOverlayManager: ObservableObject {
     }
 
     func updateStatus(_ text: String) {
-        statusMessage = text
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+            statusMessage = text
+        }
     }
 
     func show() {

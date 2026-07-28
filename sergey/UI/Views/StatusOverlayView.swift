@@ -14,11 +14,17 @@ struct StatusOverlayView: View {
                     
                     Spacer()
                     
-                    Text(manager.statusMessage)
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.primary.opacity(0.8))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+                    ZStack {
+                        Text(manager.statusMessage)
+                            .id(manager.statusMessage)
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.primary.opacity(0.8))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .transition(.asymmetric(insertion: .move(edge: .bottom), removal: .move(edge: .top)))
+                    }
+                    .animation(.spring(response: 0.35, dampingFraction: 0.75), value: manager.statusMessage)
+                    .frame(maxWidth: .infinity)
                     
                     Spacer()
                     
