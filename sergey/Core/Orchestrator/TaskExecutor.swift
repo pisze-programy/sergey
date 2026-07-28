@@ -13,7 +13,6 @@ struct AgentInstruction {
 // MARK: - Task Executor
 
 final class TaskExecutor {
-    private let speech = SpeechRecognizer()
     private let ollama = OllamaClient()
 
     private var isProcessing = false
@@ -25,20 +24,7 @@ final class TaskExecutor {
 
     func startListening() {
         guard !isProcessing else { return }
-        
-        Task {
-            speech.startLiveTranscription { [weak self] partialText in
-                if let self = self {
-                    self.currentLivePrompt = partialText
-                    ResponseOverlayManager.shared.show(text: partialText.isEmpty ? MessagingManager.shared.listeningPrompt : partialText, isLoading: true)
-                }
-            }
-
-            if self.currentLivePrompt.isEmpty {
-                let randomPrompt = MessagingManager.shared.getRandomIdlePrompt()
-                ResponseOverlayManager.shared.show(text: randomPrompt, isLoading: false)
-            }
-        }
+        // Audio recording functionality removed. Use other input methods.
     }
 
     func executeRequest() async {
@@ -47,11 +33,15 @@ final class TaskExecutor {
         isProcessing = true
         defer { isProcessing = false }
 
-        let STT_final = speech.stopLiveTranscription()
+        // STT_final retrieval from audio is removed. 
+        // The user request will be provided through other input mechanisms in the future.
+        let STT_final = "" 
         var iteration = 1
         let maxIterations = 10
 
-        HistoryStore.shared.appendMessage(HistoryMessage(role: "user", content: STT_final))
+        if !STT_final.isEmpty {
+            HistoryStore.shared.appendMessage(HistoryMessage(role: "user", content: STT_final))
+        }
 
         while iteration <= maxIterations {
             print("[Agent] Iteration \(iteration)/\(maxIterations)")

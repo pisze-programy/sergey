@@ -1,12 +1,13 @@
 import AppKit
 import AVFoundation
-import Speech
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let taskExecutor = TaskExecutor()
-    let audioRecorder = AudioRecorder()
+    let statusOverlay = StatusOverlayManager()
     
     func applicationWillFinishLaunching(_ notification: Notification) {
+
+
         let runningApps = NSWorkspace.shared.runningApplications
         for app in runningApps where app.bundleIdentifier == Bundle.main.bundleIdentifier {
             if app.processIdentifier != ProcessInfo.processInfo.processIdentifier {

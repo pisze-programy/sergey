@@ -11,18 +11,7 @@ struct SettingsView: View {
                     .fontWeight(.bold)
                     .padding(.bottom, 10)
 
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Enable Voice")
-                            .font(.headline)
-                        Text("Allows the assistant to listen to your commands.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    Spacer()
-                    Toggle("", isOn: $store.enableVoice)
-                        .labelsHidden()
-                }
+                // STT/Voice options removed. Use other input methods.
 
                 Divider()
 
@@ -31,7 +20,7 @@ struct SettingsView: View {
                         .font(.headline)
                     Text("The endpoint where your local Ollama server is running.")
                             .font(.caption)
-                        .foregroundColor(.secondary)
+                            .foregroundColor(.secondary)
                     TextField("URL", text: $store.ollamaURL)
                         .textFieldStyle(.roundedBorder)
                 }
@@ -46,32 +35,6 @@ struct SettingsView: View {
                         .foregroundColor(.secondary)
                     TextField("Model", text: $store.modelName)
                         .textFieldStyle(.roundedBorder)
-                }
-
-                Divider()
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("STT Engine")
-                        .font(.headline)
-                    Picker("Engine Type", selection: $store.sttEngineType) {
-                        ForEach(STTEngineType.allCases, id: \.self) { type in
-                            Text(type.rawValue).tag(type)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                }
-
-                Divider()
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Speech Language")
-                        .font(.headline)
-                    Picker("Language", selection: $store.speechLanguage) {
-                        ForEach(SettingsStore.availableLanguages, id: \.id) { lang in
-                            Text(lang.name).tag(lang.id)
-                        }
-                    }
-                    .pickerStyle(.menu)
                 }
 
                 Divider()
