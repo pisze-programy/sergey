@@ -12,27 +12,22 @@ final class HistoryWindowManager {
             let hostingView = NSHostingView(rootView: HistoryView())
 
             let windowWidth: CGFloat = 500
-            let windowHeight: CGFloat = 600
+            let windowHeight: CGFloat = 300
 
-            if let window = self.window {
-                window.contentView = hostingView
-                window                .makeKeyAndOrderFront(nil)
-            } else {
-                let newWindow = NSWindow(
-                    contentRect: NSRect(x: 0, y: 0, width: windowWidth, height: windowHeight),
-                    styleMask: [.titled, .closable, .fullSizeContentView],
-                    backing: .buffered,
-                    defer: false
-                )
+            let newWindow = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: windowWidth, height: windowHeight),
+                styleMask: [.titled, .closable, .fullSizeContentView],
+                backing: .buffered,
+                defer: false
+            )
 
-                newWindow.title = "Session History"
-                newWindow.isReleasedWhenClosed = false
-                newWindow.level = .floating
-                newWindow.center()
-                newWindow.contentView = hostingView
-                newWindow.makeKeyAndOrderFront(nil)
-                self.window = newWindow
-            }
+            newWindow.isReleasedWhenClosed = false
+            newWindow.ignoresMouseEvents = true
+            newWindow.level = .floating
+            newWindow.center()
+            newWindow.contentView = hostingView
+            newWindow.makeKeyAndOrderFront(nil)
+            self.window = newWindow
         }
     }
 

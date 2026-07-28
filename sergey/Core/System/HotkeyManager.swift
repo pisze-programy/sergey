@@ -5,14 +5,17 @@ public enum HotkeyTrigger {
     case escapePressed
     case visionPressed
     case visionReleased
+    case expandPressed
 }
 
 final class HotkeyManager {
     static let shared = HotkeyManager()
     private let taskExecutor = TaskExecutor()
+    private let statusOverlayManager = StatusOverlayManager.shared
     
-    private var actions: [HotkeyTrigger: () -> Void] = [:]
-    private var visionActive = false
+    private var actions: [HotkeyTrigger: () -> Void] = [
+        .expandPressed: { StatusOverlayManager.shared.showExpansion() }
+    ]
     
     public func registerHotkeys() {
         registerAction(for: .visionPressed) { [weak self] in
@@ -27,8 +30,8 @@ final class HotkeyManager {
         }
 
         registerAction(for: .escapePressed) { [weak self] in
-            ResponseOverlayManager.shared.hide()
             self?.taskExecutor.resetProcessing()
+            self?.statusOverlayManager.hideExpansion()
         }
 
         start()
@@ -51,21 +54,19 @@ final class HotkeyManager {
 
     private func handle(_ event: NSEvent) {
         let ESC = 53
-        if event.keyCode == ESC {
+
+        if event.type == .keyDown && event.keyCode == ESC {
             DispatchQueue.main.async {
                 self.actions[.escapePressed]?()
             }
         }
 
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+
         if flags == [.control, .option] {
-            if !visionActive {
-                visionActive = true
-                self.actions[.visionPressed]?()
+            DispatchQueue.main.async {
+                self.actions[.expandPressed]?()
             }
-        } else if visionActive {
-            visionActive = false
-            self.actions[.visionReleased]?()
         }
     }
 }

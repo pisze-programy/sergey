@@ -3,7 +3,7 @@ import AVFoundation
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let taskExecutor = TaskExecutor()
-    let statusOverlay = StatusOverlayManager()
+    let statusOverlay = StatusOverlayManager.shared
     
     func applicationWillFinishLaunching(_ notification: Notification) {
         let runningApps = NSWorkspace.shared.runningApplications
@@ -17,11 +17,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         SkillInitializer.shared.setup()
         HotkeyManager.shared.registerHotkeys()
+        statusOverlay.show()
         startTextRotationTest()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        ResponseOverlayManager.shared.hide()
+        statusOverlay.hide()
         self.taskExecutor.resetProcessing()
     }
 
@@ -37,7 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         
         var index = 0
         Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-            self.statusOverlay.overlayText = sampleTexts[index % sampleTexts.count]
+            self.statusOverlay.statusMessage = sampleTexts[index % sampleTexts.count]
             self.statusOverlay.isActive.toggle()
             index += 1
         }
