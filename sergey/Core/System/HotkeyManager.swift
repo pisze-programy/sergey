@@ -29,6 +29,7 @@ final class HotkeyManager {
         registerAction(for: .escapePressed) { [weak self] in
             ResponseOverlayManager.shared.hide()
             self?.taskExecutor.resetProcessing()
+            MarkerOverlayManager.shared.clear()
         }
 
         start()

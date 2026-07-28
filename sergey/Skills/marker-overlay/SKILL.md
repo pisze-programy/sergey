@@ -30,7 +30,7 @@ Use this skill to draw visual highlights on the screen. This is useful for point
 
 ## Usage
 
-You can draw different types of markers with an duration (in seconds) after which they will disappear automatically.
+You can draw different types of markers with required duration (in seconds) after which they will disappear automatically.
 
 ### Draw Rectangle
 Highlights a specific area. Use `duration` to make it transient.

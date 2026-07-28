@@ -21,6 +21,8 @@ final class ScreenCaptureExecutor: NSObject, SkillExecutor {
                 image = try await capturePrimaryDisplay()
             }
             
+            print("[DEBUG] Captured Image Size (pixels): \(image.width)x\(image.height)")
+            
             guard let pngData = imageToPNGData(image) else {
                 return SkillResult(success: false, error: "Failed to convert image to PNG")
             }
@@ -48,7 +50,13 @@ final class ScreenCaptureExecutor: NSObject, SkillExecutor {
 
     @MainActor
     private func captureRegion(x: Double, y: Double, w: Double, h: Double) async throws -> CGImage {
-        let rect = CGRect(x: CGFloat(x), y: CGFloat(y), width: CGFloat(w), height: CGFloat(h))
+        let scale = NSScreen.main?.backingScaleFactor ?? 1.0
+        let rectInPoints = CGRect(x: CGFloat(x), y: CGFloat(y), width: CGFloat(w), height: CGFloat(h))
+        let rectInPixels = CGRect(x: rectInPoints.origin.x * scale, 
+                                  y: rectInPoints.origin.y * scale, 
+                                  width: rectInPoints.size.width * scale, 
+                                  height: rectInPoints.size.height * scale)
+
         let displays = try await SCShareableContent.current.displays
         guard let display = displays.first else {
             throw NSError(domain: "ScreenCapture", code: 1, userInfo: [NSLocalizedDescriptionKey: "No displays found"])
@@ -60,7 +68,7 @@ final class ScreenCaptureExecutor: NSObject, SkillExecutor {
         configuration.height = display.height
 
         let fullImage = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: configuration)
-        guard let cropped = fullImage.cropping(to: rect) else {
+        guard let cropped = fullImage.cropping(to: rectInPixels) else { 
             throw NSError(domain: "ScreenCapture", code: 2, userInfo: [NSLocalizedDescriptionKey: "Crop failed"])
         }
         return cropped

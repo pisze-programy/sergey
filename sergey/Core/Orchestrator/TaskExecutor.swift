@@ -123,14 +123,12 @@ final class TaskExecutor {
                                 HistoryStore.shared.appendMessage(HistoryMessage(role: "system", content: data))
                             }
                         case "action":
-                            print("[Action]: \(instruction)")
                             guard let name = instruction.name else {
                                 print("[Action] Error: No name provided")
                                 continue
                             }
                             let params = instruction.params as? [String: Any] ?? [:]
 
-                            // Use Task to ensure we can await and then update History on MainActor
                             Task {
                                 if let result = await handleInstructionAction(name: name, params: params) {
                                     await MainActor.run {

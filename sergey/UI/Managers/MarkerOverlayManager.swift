@@ -53,6 +53,8 @@ final class MarkerOverlayManager {
     
     @MainActor
     func drawRect(_ rect: CGRect, color: Color = .red, lineWidth: CGFloat = 2.0, duration: TimeInterval? = nil) {
+        let scale = NSScreen.main?.backingScaleFactor ?? 1.0
+        print("[DEBUG] MarkerOverlay - Scale: \(scale), Rect Points: \(rect)")
         let id = UUID()
         state.add(.rect(id: id, rect: rect, color: color, lineWidth: lineWidth))
         if let duration = duration {
