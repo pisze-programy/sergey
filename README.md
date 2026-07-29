@@ -1,92 +1,50 @@
 # Sergey
 
-macOS menu-bar application for local AI agent orchestration. Sits in the status bar, exposes an expandable overlay with real-time agent state, and persists every lifecycle event to disk.
+An intelligent macOS menu-bar companion designed to orchestrate AI agents that interact with your system context, screen, and tools in real-time.
 
-## Current capabilities
+## Why Sergey?
+Most AI tools require manual input (copy-paste). **Sergey observes.** By leveraging accessibility APIs, screen context, and speech-to-text, Sergey turns passive LLMs into active system participants that can watch your workflow, manage your calendar, and execute background tasks without interrupting your focus.
 
-- **Agent overlay** — borderless NSPanel anchored to bottom-right. Collapsed: 55px header with status message and chevron. Expanded: agent list, detail drill-down, input field. Expand/collapse animated via `withAnimation` + delayed `setFrame`.
-- **Agent states** — Running (green), Stopped (orange), Inactive (gray). Click any agent to view full log history inside the overlay.
-- **Persistent history** — all state changes logged per-agent to JSON. Survives restarts. Full history visible via menu-bar "Agent History" window.
-- **Focus mode** — toggle from menu bar or settings window. Sets overlay opacity to 50% and suppresses `CommunicationDispatcher` status updates. Agent execution continues unaffected.
-- **Simulation engine** — timer-driven cycle (every 1.2 s) that adds, updates, and removes agents from a pool of 5 names (Coder, Researcher, Designer, QA, Architect). Capped at 10 concurrent agents. Used for UI regression testing without live LLM.
+## Current State
+Currently, Sergey functions as a **foundation for agent orchestration**. It provides the infrastructure for:
+- **Persistent Agent Logs**: Every action, not even every thought, and status change is logged and searchable.
+- **System Integration**: Interface for keyboard shortcuts and macOS notifications.
 
-## Architecture
+- **Local LLM Support**: Out-of-the-box integration with Ollama for private, local execution.
+- **Overlay UI**: A non-intrusive, animated panel to monitor agent progress in the corner of your screen.
 
-```
-sergey/
-├── AppDelegate.swift                      slim bootstrapper: init panel + service + hotkeys + simulation
-│
-├── Core/Models/                           pure data — no I/O, no side effects
-│   ├── AgentModel.swift                   id, name, workDescription, StateFlag enum (color/icon/title computed properties)
-│   └── AgentLogModel.swift               timestamped log entry; HistoryRecordAgent (agent-scoped log list); HistoryDataRoot (file-root container)
-│
-├── Core/Services/                         @MainActor singletons — state owners
-│   ├── AgentStatusService                 CRUD agents, status text, Published activeAgents + statusMessage
-│   └── SimulationOrchestrator             timer loop: 5-phase cycle, max 10 agents
-│
-├── Core/Persistence/                      JSON key-value config
-│   └── SettingsStore                     ollamaURL, modelName, isFocusModeEnabled → ~/.sergey_config.json
-│
-├── Persistence/                           full-disk persistence
-│   └── HistoryStore                      HistoryDataRoot → ~/Library/Application Support/sergey/history.json
-│
-├── Core/Agents/LLM/                       Ollama integration (text-only, streaming)
-│   ├── LLMService                        generateScopedResponse(systemPrompt, prompt, onChunk) → LLMResponse
-│   └── Providers/OllamaClient             AsyncThrowingStream over HTTP POST to /api/chat
-│
-├── Core/Orchestrator/                     action parsing pipeline (not yet wired)
-│   ├── ActionInterpreter                 parse "Action: skill_name(param=value)" → ActionInterpretationResult
-│   └── TaskExecutor                      isProcessing guard, resetProcessing
-│
-├── Core/System/                           cross-cutting utilities
-│   ├── CommunicationDispatcher           router: notifications + overlay status per priority + focus-mode gate
-│   ├── HotkeyManager                     global monitors: Ctrl+Opt = toggle expand, Escape = collapse + reset
-│   ├── MessagingManager                  static prompt strings (idle, listening, thinking, error)
-│   ├── PromptManager                     load .md templates from Bundle.main/Prompts/
-│   └── SystemNotificationService         UNUserNotificationCenter wrapper with interruption-level mapping
-│
-├── UI/Panels/                             NSPanel wrappers + SwiftUI components
-│   ├── StatusOverlayPanel                KeyPanel subclass (canBecomeKey = true), frame math, lifecycle
-│   ├── StatusOverlayFacadeView           root SwiftUI view: header + conditional agent list/detail routing
-│   ├── StatusOverlayHeaderViewView       status dot, message text (animated transitions), chevron icon
-│   ├── AgentDetailViewDetailPanel        detail sheet with per-agent log viewer
-│   └── HistoryView                       history window content: agent list + log table
-│
-├── UI/Managers/                           NSWindow factories
-│   ├── HistoryWindowManager              floating window (780x460), reusable instance
-│   └── SettingsWindowManager             floating window (400x500)
-│
-├── UI/Views/                              menu-bar + config UI
-│   ├── MenuBarView                       Agent History, Settings, Focus Mode toggle, Quit
-│   └── SettingsView                      ollamaURL input, modelName dropdown, Focus Mode toggle
-│
-└── sergeyApp.swift                        @main entry point with MenuBarExtra scene
-```
+## Planned Capabilities (The Roadmap)
+- **Vision & Context**: Using Screen Capture and Accessibility APIs to "see" what you are working on.
+- **Voice Command (STT)**: Integrated Parakeet/Whisper for hands-free instructions.
+- **Advanced Researcher Agent**: A specialized agent capable of web-searching, scraping, and synthesizing information.
+- **Asynchronous Task Queue**: Running complex, multi-step tasks (e.g., "Backup this folder, then update my Jira") in the background while you work.
+- **Calendar & Schedule Management**: Cross-referencing your screen context with your calendar to manage meetings and focus time.
+- **Tool Extensions**: Acts as a UI/UX extension for existing tools like Claude Code, OpenCode, or terminal-based agents, providing a visual "progress layer."
 
-## Config files
+## Usage Examples
 
-| File | Path | Format |
-| --- | --- | --- |
-| Settings | `~/.sergey_config.json` | JSON keys: `ollamaURL`, `modelName`, `isFocusModeEnabled` |
-| History | `~/Library/Application Support/sergey/history.json` | `HistoryDataRoot.agents[]` list, each with `logs[]` |
+### Example 1: The Researcher (Web Search)
+**[User]**: *(Via Voice)* "Sergey, find me the latest pricing for Nvidia H100 GPUs and summarize it."  
+**[Sergey]**: Spawns `Researcher` agent $\rightarrow$ Performs Web Search $\rightarrow$ Scrapes results.  
+**[System]**: Notifies user via Overlay: "Summary ready in clipboard."
 
-Default settings (first run): Ollama URL `http://localhost:11434`, model `gemma4:26mu-a4b-it-q4_K_M`.
+### Example 2: Contextual Automation (Calendar + Screen)
+**[User]**: *(Via Text Input)* "Check if I can take this meeting."  
+**[Sergey]**: Scans Calendar $\rightarrow$ Checks current active window activity.  
+**[System]**: Overlay Update: "Meeting at 3 PM is clear. You have no high-priority tasks pending."
 
-## Keyboard shortcuts
+### Example 3: Background Tasking (Async Queue)
+**[User]**: "Run a full project backup and notify me when done."  
+**[Sergey]**: Adds `Backup` task to queue $\rightarrow$ Executes via local shell.  
+**[System]**: [Background Process running...] $\rightarrow$ *Notification*: "Backup Complete: 1.2GB processed."
 
+## Shortcuts
 | Combo | Action |
-| --- | --- |
-| Ctrl + Opt | Toggle overlay expand/collapse |
-| Escape | Collapse overlay, reset task executor |
+| :--- | :--- |
+| `Ctrl + Opt` | Toggle Overlay Expand/Collapse |
+| `Escape` | Collapse & Reset Task Execution |
 
-## LLM pipeline status
+## Configuration
+Settings are persisted in:
+- **App Config**: `~/.sergey_config.json` (O																																	       
 
-`OllamaClient` and `LLMService` implement streaming text chat. `ActionInterpreter` can parse ReAct-style responses into skill invocations. Neither is wired through `TaskExecutor` yet — execution path currently guarded by `isProcessing` with a stub body.
-
-## Roadmap
-
-- Wire `ActionInterpreter` output to actual skill executors via `TaskExecutor`
-- Replace simulation with real user input flow (command field → LLM → action dispatch)
-- Add pluggable provider abstraction beyond Ollama
-- Persist Prompts directory outside bundle for runtime editing
-- Swap agent list view to native `NSTableView` for scale

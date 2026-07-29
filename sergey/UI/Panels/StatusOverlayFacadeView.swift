@@ -84,6 +84,11 @@ struct StatusOverlayFacadeView: View {
             .frame(width: StatusOverlayPanel.Layout.width, height: panelManager.isExpanded ? StatusOverlayPanel.Layout.expandedHeight : StatusOverlayPanel.Layout.collapsedHeight)
             .animation(.spring(response: 0.35, dampingFraction: 0.75), value: panelManager.isExpanded)
             .opacity(settings.isFocusModeEnabled ? 0.5 : 1.0)
+            .onChange(of: panelManager.isExpanded) { expanded in
+                if expanded {
+                    isInputFieldFocused = true
+                }
+            }
     }
     
     @ViewBuilder
