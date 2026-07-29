@@ -11,7 +11,6 @@ final class CommunicationDispatcher {
     
     func dispatch(message: String, priority: NotificationPriority) {
         if settings.isFocusModeEnabled {
-            // Focus Mode ON: Only critical notifications, NO overlay updates
             if priority == .critical {
                 notifications.sendNotification(
                     title: "Sergey - Critical",
@@ -20,7 +19,6 @@ final class CommunicationDispatcher {
                 )
             }
         } else {
-            // Focus Mode OFF: All notifications + update overlay
             notifications.sendNotification(
                 title: "Sergey",
                 body: message,
@@ -30,7 +28,6 @@ final class CommunicationDispatcher {
         }
     }
     
-    /// Use this for purely UI status updates that shouldn't trigger system notifications
     func updateStatusOnly(_ text: String) {
         if !settings.isFocusModeEnabled {
             service.updateStatusMessage(text)

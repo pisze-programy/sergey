@@ -1,8 +1,6 @@
 import SwiftUI
 import AppKit
 
-// MARK: - Main History View
-
 struct HistoryView: View {
     @ObservedObject var historyStore = HistoryStore.shared
     @State private var selectedAgentID: UUID?
@@ -12,7 +10,6 @@ struct HistoryView: View {
     private let timeFormatter: DateFormatter
     private let maxLogsToShow = 20
 
-    // Reactive — always fresh from store
     private var sortedAgents: [HistoryRecordAgent] {
         historyStore.data.agents.sorted(by: { $0.firstLaunchDate > $1.firstLaunchDate })
     }
@@ -33,9 +30,7 @@ struct HistoryView: View {
         }()
     }
 
-    // Auto-select first agent on appear
     private func ensureSelection() {
-        _ = print("📋 [HistoryView] ensureSelection, selectedAgentID=\(selectedAgentID), agents=\(sortedAgents.count)")
         if selectedAgentID == nil, !sortedAgents.isEmpty {
             selectedAgentID = sortedAgents[0].id
         }
@@ -44,11 +39,9 @@ struct HistoryView: View {
     var body: some View {
         GeometryReader { geo in
             HStack(spacing: 0) {
-                // LEFT — Agent history list
                 agentListPane
                     .frame(width: paneWidth)
 
-                // Draggable divider
                 Rectangle()
                     .fill(Color.secondary.opacity(0.25))
                     .frame(width: 4)
@@ -61,15 +54,12 @@ struct HistoryView: View {
                             }
                     )
 
-                // RIGHT — Detail panel
                 detailPane
                     .frame(minWidth: 300, maxWidth: .infinity)
             }
         }
         .onAppear(perform: ensureSelection)
     }
-
-    // MARK: - Left Pane (Agent List)
 
     private var agentListPane: some View {
         VStack(spacing: 0) {
@@ -135,8 +125,6 @@ struct HistoryView: View {
             }
         }
     }
-
-    // MARK: - Right Pane (Detail)
 
     private var detailPane: some View {
         Group {
@@ -250,8 +238,6 @@ struct HistoryView: View {
         }
     }
 }
-
-// MARK: - Log Row
 
 private struct LogRowView: View {
     let log: AgentLog

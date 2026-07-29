@@ -50,9 +50,7 @@ class HistoryStore: ObservableObject {
             encoder.outputFormatting = .prettyPrinted
             let encoded = try encoder.encode(data)
             try encoded.write(to: historyURL)
-        } catch {
-            print("[HistoryStore] Failed to save history: \(error)")
-        }
+        } catch { }
     }
 
     func clearAllHistory() {

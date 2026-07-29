@@ -49,7 +49,6 @@ struct AgentListView: View {
             LazyVStack(spacing: 10) {
                 ForEach(agents) { agent in
                     Button {
-                        print("🐛 [AgentListView] tapped agent: \(agent.name)")
                         onTap(agent)
                     } label: {
                         AgentRowComponent(agent: agent)
@@ -58,9 +57,6 @@ struct AgentListView: View {
                 }
             }
             .padding(.horizontal, 2)
-        }
-        .onAppear {
-            print("🐛 [AgentListView] onAppear — showing \(agents.count) agents")
         }
     }
 }
@@ -73,9 +69,6 @@ struct EmptyStateAgentView: View {
             description: Text("Agents managing active tasks will appear here.")
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onAppear {
-            print("🐛 [EmptyStateAgentView] onAppear — no agents")
-        }
     }
 }
 
@@ -86,19 +79,9 @@ struct StatusOverlayFacadeView: View {
     @FocusState private var isInputFieldFocused: Bool
     @ObservedObject private var settings = SettingsStore.shared
 
-    init() {
-        print("🏗️ [Facade] init")
-    }
-
     var body: some View {
         rootContent()
             .frame(width: StatusOverlayPanel.Layout.width, height: panelManager.isExpanded ? StatusOverlayPanel.Layout.expandedHeight : StatusOverlayPanel.Layout.collapsedHeight)
-            .onAppear {
-                print("🎨 [Facade] onAppear — expanded=\(panelManager.isExpanded), agents.count=\(statusService.activeAgents.count)")
-                for a in statusService.activeAgents {
-                    print("🐛   agent: \(a.name) state=\(a.state.title)")
-                }
-            }
             .animation(.spring(response: 0.35, dampingFraction: 0.75), value: panelManager.isExpanded)
             .opacity(settings.isFocusModeEnabled ? 0.5 : 1.0)
     }
@@ -124,14 +107,8 @@ struct StatusOverlayFacadeView: View {
                 if panelManager.isExpanded {
                     self.expandedContent()
                         .padding(15)
-                        .onAppear {
-                            print("😱 [Facade] >>>>> expandedContent onAppear <<<<<")
-                        }
                 } else {
                     EmptyView()
-                        .onAppear {
-                            print("🐛 [Facade] rootContent collapsed branch")
-                        }
                 }
             }
         }
@@ -148,7 +125,6 @@ struct StatusOverlayFacadeView: View {
             
             agentContent
         }
-        .onAppear { print("✅ [Facade] expandedContent fully rendered") }
     }
     
     @ViewBuilder
@@ -170,7 +146,6 @@ struct StatusOverlayFacadeView: View {
     private var agentContent: some View {
         if let selectedId = selectedAgentId {
             AgentDetailViewDetailPanel(agentId: selectedId, onBack: {
-                print("🐛 [Facade] detailPanel onBack called")
                 self.selectedAgentId = nil
             })
             .environmentObject(statusService)
@@ -185,9 +160,7 @@ struct StatusOverlayFacadeView: View {
     }
     
     private func toggleHeader() {
-        print("🐛 [Facade] >>>>> toggleHeader called <<<<<, before: isExpanded=\(panelManager.isExpanded)")
         selectedAgentId = nil
         panelManager.toggleExpansion()
-        print("🐛 [Facade] <<<<< toggleHeader END <<<<<")
     }
 }

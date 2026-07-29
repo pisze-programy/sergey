@@ -28,7 +28,6 @@ final class LLMService {
             
             return parseResponse(fullText)
         } catch {
-            print("[LLMService] Error generating response: \(error)")
             throw error
         }
     }
@@ -39,11 +38,9 @@ final class LLMService {
         
         if let thoughtRange = text.range(of: "Thought:", options: .caseInsensitive), 
            let actionRange = text.range(of: "Action:", options: .caseInsensitive) {
-            // Extract Thought (between 'Thought:' and 'Action:')
             let thoughtPart = text[thoughtRange.upperBound..<actionRange.lowerBound]
             thought = String(thoughtPart).trimmingCharacters(in: .whitespacesAndNewlines)
             
-            // Extract Action (after 'Action:')
             let actionPart = text[actionRange.upperBound...]
             action = String(actionPart).trimmingCharacters(in: .whitespacesAndNewlines)
         }

@@ -19,27 +19,21 @@ final class SimulationOrchestrator {
     private var step = 0
     
     init(_ service: AgentStatusService) {
-        print("🤖 [SimOrch] init with agentService")
         self.agentService = service
     }
 
     func start() {
-        print("▶️  [SimOrch] start() called")
         Task { @MainActor in
-            print("▶️  [SimOrch] initial status update task running")
             agentService.updateStatusMessage("Initializing agents...")
         }
 
         Timer.scheduledTimer(withTimeInterval: 1.2, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             Task { @MainActor in
-                print("🔄 [SimOrch] timer tick, step=\(self.step)")
                 self.simulateAgentCycle()
             }
         }
     }
-    
-    // MARK: - Private Simulation Logic
     
     private let maxAgents: Int = 10
     private var testAgentIds: [UUID] = []
@@ -48,8 +42,6 @@ final class SimulationOrchestrator {
         let phase = step % 5
         let atLimit = agentService.activeAgents.count >= maxAgents
         defer { step += 1 }
-
-        print("🔢 [SimOrch] phase=\(phase), atLimit=\(atLimit), agents=\(agentService.activeAgents.count)")
 
         switch phase {
         case 0:

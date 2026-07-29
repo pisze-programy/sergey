@@ -2,11 +2,6 @@ import SwiftUI
 
 @main
 struct AIBuddyApp: App {
-    
-    init() {
-        print("✅ [App] AIBuddyApp init started")
-    }
-
     @NSApplicationDelegateAdaptor(AppDelegate.self)
     var appDelegate
 

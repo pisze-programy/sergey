@@ -46,7 +46,6 @@ final class ActionInterpreter {
 
     private func parseParameters(_ paramsString: String) -> [String: Any] {
         var dict: [String: Any] = [:]
-        // Use a more robust way to split parameters that doesn't break on commas inside brackets
         let pattern = ",(?![^\\[]*\\])(?![^{]*\\})"
         let regex = try? NSRegularExpression(pattern: pattern, options: [])
         let range = NSRange(paramsString.startIndex..<paramsString.endIndex, in: paramsString)
@@ -54,7 +53,6 @@ final class ActionInterpreter {
             String(paramsString[Range($0.range, in: paramsString)!])
         } ?? [paramsString]
 
-        // If regex failed or didn't find matches, fallback to simple split (very basic)
         let parts = components.isEmpty ? paramsString.components(separatedBy: ",") : components
         
         for pair in parts {
@@ -62,7 +60,6 @@ final class ActionInterpreter {
             if kv.count == 2 {
                 let key = kv[0].trimmingCharacters(in: .whitespaces)
                 var val = kv[1].trimmingCharacters(in: .whitespaces)
-                // Remove surrounding quotes
                 if (val.hasPrefix("\"") && val.hasSuffix("\"")) || (val.hasPrefix("'") && val.hasSuffix("'")) {
                     val = String(val.dropFirst().dropLast())
                 }

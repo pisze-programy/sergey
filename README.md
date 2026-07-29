@@ -1,109 +1,92 @@
 # Sergey
 
-> macOS menu-bar application for orchestrating local AI agents.
+macOS menu-bar application for local AI agent orchestration. Sits in the status bar, exposes an expandable overlay with real-time agent state, and persists every lifecycle event to disk.
 
-Sergey sits in the menu bar, watches your local LLM workload through an agent dashboard, and logs every lifecycle event to persistent history. It uses a clean **Separation of Concerns** architecture: pure data models, dedicated services, JSON persistence, and thin UI panels — no God objects.
+## Current capabilities
 
-## Features
-
-- **Agent Dashboard** — expandable overlay panel listing all active AI agents with real-time state indicators (running / stopped / inactive).
-- **Agent Detail View** — click any agent to see its current task description, full lifecycle, and activity log inside the overlay.
-- **Activity History** — persistent JSON-backed log of every agent state change, work-description update, and removal across all sessions.
-- **Focus Mode** — global toggle (Menu Bar + Settings) that dims the overlay (50% opacity), suppresses status text, and keeps agents running silently in the background.
-- **Simulation Engine** — deterministic multi-agent cycle (capped at 10 concurrent agents) for UI testing without external services.
+- **Agent overlay** — borderless NSPanel anchored to bottom-right. Collapsed: 55px header with status message and chevron. Expanded: agent list, detail drill-down, input field. Expand/collapse animated via `withAnimation` + delayed `setFrame`.
+- **Agent states** — Running (green), Stopped (orange), Inactive (gray). Click any agent to view full log history inside the overlay.
+- **Persistent history** — all state changes logged per-agent to JSON. Survives restarts. Full history visible via menu-bar "Agent History" window.
+- **Focus mode** — toggle from menu bar or settings window. Sets overlay opacity to 50% and suppresses `CommunicationDispatcher` status updates. Agent execution continues unaffected.
+- **Simulation engine** — timer-driven cycle (every 1.2 s) that adds, updates, and removes agents from a pool of 5 names (Coder, Researcher, Designer, QA, Architect). Capped at 10 concurrent agents. Used for UI regression testing without live LLM.
 
 ## Architecture
 
-Strict Separation of Concerns across four layers:
-
 ```
 sergey/
-├── AppDelegate.swift              ← slim initializer only (~20 lines)
+├── AppDelegate.swift                      slim bootstrapper: init panel + service + hotkeys + simulation
 │
-├── Core/Models/                   ← pure data structs (no side effects)
-│   ├── AgentModel.swift           ← id, name, state enum, workDescription, color/title helpers
-│   └── AgentLogModel.swift        ← timestamped activity entry + root data struct
+├── Core/Models/                           pure data — no I/O, no side effects
+│   ├── AgentModel.swift                   id, name, workDescription, StateFlag enum (color/icon/title computed properties)
+│   └── AgentLogModel.swift               timestamped log entry; HistoryRecordAgent (agent-scoped log list); HistoryDataRoot (file-root container)
 │
-├── Core/Services/                 ← business logic & state management (@MainActor)
-│   ├── AgentStatusService.swift   ← singleton: CRUD agents, status message, Published activeAgents
-│   └── SimulationOrchestrator.swift ← deterministic cycle (add/update/remove every 1.2s, max 10)
+├── Core/Services/                         @MainActor singletons — state owners
+│   ├── AgentStatusService                 CRUD agents, status text, Published activeAgents + statusMessage
+│   └── SimulationOrchestrator             timer loop: 5-phase cycle, max 10 agents
 │
-├── Persistence/                   ← JSON persistence & key-value configs
-│   ├── HistoryStore.swift         ← auto-logs agent lifecycle to ~/.sergey_history.json
-│   └── SettingsStore.swift        ← Ollama URL, model name, Focus Mode toggle
+├── Core/Persistence/                      JSON key-value config
+│   └── SettingsStore                     ollamaURL, modelName, isFocusModeEnabled → ~/.sergey_config.json
 │
-├── UI/Panels/                     ← NSPanel wrappers + SwiftUI view components
-│   ├── StatusOverlayPanel.swift   ← NSPanel size, frame animation, hosting-view binding
-│   ├── StatusOverlayFacadeView.swift ← root SwiftUI view (routes list ↔ detail via @State)
-│   ├── StatusOverlayHeaderViewView.swift ← collapsible header with status message
-│   ├── AgentDetailViewDetailPanel.swift  ← agent detail sheet (header + logs)
-│   └── HistoryView.swift          ← history window content (agent list + log viewer)
+├── Persistence/                           full-disk persistence
+│   └── HistoryStore                      HistoryDataRoot → ~/Library/Application Support/sergey/history.json
 │
-├── UI/Views/                      ← standalone SwiftUI views
-│   ├── MenuBarView.swift           ← status icon + Focus Mode toggle
-│   └── SettingsView.swift          ← Ollama config form wired to SettingsStore
+├── Core/Agents/LLM/                       Ollama integration (text-only, streaming)
+│   ├── LLMService                        generateScopedResponse(systemPrompt, prompt, onChunk) → LLMResponse
+│   └── Providers/OllamaClient             AsyncThrowingStream over HTTP POST to /api/chat
 │
-├── Core/Agents/LLM/              ← language model integration
-├── Core/System/                  ← hotkeys, communication dispatch, notifications
-└── Core/Orchestrator/            ← task execution pipeline (future: action interpreter)
+├── Core/Orchestrator/                     action parsing pipeline (not yet wired)
+│   ├── ActionInterpreter                 parse "Action: skill_name(param=value)" → ActionInterpretationResult
+│   └── TaskExecutor                      isProcessing guard, resetProcessing
+│
+├── Core/System/                           cross-cutting utilities
+│   ├── CommunicationDispatcher           router: notifications + overlay status per priority + focus-mode gate
+│   ├── HotkeyManager                     global monitors: Ctrl+Opt = toggle expand, Escape = collapse + reset
+│   ├── MessagingManager                  static prompt strings (idle, listening, thinking, error)
+│   ├── PromptManager                     load .md templates from Bundle.main/Prompts/
+│   └── SystemNotificationService         UNUserNotificationCenter wrapper with interruption-level mapping
+│
+├── UI/Panels/                             NSPanel wrappers + SwiftUI components
+│   ├── StatusOverlayPanel                KeyPanel subclass (canBecomeKey = true), frame math, lifecycle
+│   ├── StatusOverlayFacadeView           root SwiftUI view: header + conditional agent list/detail routing
+│   ├── StatusOverlayHeaderViewView       status dot, message text (animated transitions), chevron icon
+│   ├── AgentDetailViewDetailPanel        detail sheet with per-agent log viewer
+│   └── HistoryView                       history window content: agent list + log table
+│
+├── UI/Managers/                           NSWindow factories
+│   ├── HistoryWindowManager              floating window (780x460), reusable instance
+│   └── SettingsWindowManager             floating window (400x500)
+│
+├── UI/Views/                              menu-bar + config UI
+│   ├── MenuBarView                       Agent History, Settings, Focus Mode toggle, Quit
+│   └── SettingsView                      ollamaURL input, modelName dropdown, Focus Mode toggle
+│
+└── sergeyApp.swift                        @main entry point with MenuBarExtra scene
 ```
 
-## Controls
+## Config files
 
-| Key Combo | Action |
-| :--- | :--- |
-| Control + Option | Toggle overlay expanded / collapsed |
-| Escape | Reset processing state & collapse overlay |
+| File | Path | Format |
+| --- | --- | --- |
+| Settings | `~/.sergey_config.json` | JSON keys: `ollamaURL`, `modelName`, `isFocusModeEnabled` |
+| History | `~/Library/Application Support/sergey/history.json` | `HistoryDataRoot.agents[]` list, each with `logs[]` |
 
-## Configuration
+Default settings (first run): Ollama URL `http://localhost:11434`, model `gemma4:26mu-a4b-it-q4_K_M`.
 
-Settings (`SettingsStore.shared`) synced to `~/.sergey_config.json`:
+## Keyboard shortcuts
 
-| Key | Default | Description |
-| :--- | :--- | :--- |
-| `ollamaEndpoint` | `http://localhost:11434` | Local Ollama API URL |
-| `modelName` | *(empty)* | Model to use for LLM calls |
-| `isFocusModeEnabled` | `false` | Purely visual: dims overlay, hides status text |
+| Combo | Action |
+| --- | --- |
+| Ctrl + Opt | Toggle overlay expand/collapse |
+| Escape | Collapse overlay, reset task executor |
 
-## Removed features
+## LLM pipeline status
 
-These were extracted during the SOA refactor and are **not** in the current codebase:
-
-- Vision / ScreenCaptureKit image processing — stripped from `OllamaClient`, `LLMService`, `HotkeyManager`
-- God Object `StatusOverlayManager` — split into `StatusOverlayPanel` (NSPanel) + `AgentStatusService` (state) + facade views
-- Conversation-based history session model — replaced by continuous agent activity logging (`HistoryRecordAgent` → `[AgentLog]`)
+`OllamaClient` and `LLMService` implement streaming text chat. `ActionInterpreter` can parse ReAct-style responses into skill invocations. Neither is wired through `TaskExecutor` yet — execution path currently guarded by `isProcessing` with a stub body.
 
 ## Roadmap
 
-### Phase 1 — Core LLM pipeline
-- [ ] Reconnect real Ollama streaming to `LLMService` (text-only endpoint, no vision)
-- [ ] Wire `ActionInterpreter` to parse tool-use JSON from agent responses
-- [ ] Replace simulation with actual multi-agent task fan-out
-
-### Phase 2 — Communication & routing
-- [ ] Agent messaging layer: inter-agent pub/sub via `CommunicationDispatcher`
-- [ ] Priority queue for status and notification dispatch (currently single-channel)
-- [ ] Pluggable provider support (Anthropic, Groq, OpenRouter) alongside Ollama
-
-### Phase 3 — Skills & automation
-- [ ] Skill registry: declarative JSON manifest → Swift runtime loader
-- [ ] File system scanner skill (recursive index + smart search)
-- [ ] Network diagnostic skill (latency ping, DNS lookup, proxy status)
-
-### Phase 4 — UX polish
-- [ ] Native `NSTableView` replacement for agent list (performance on large sets)
-- [ ] Undo/redo on history records
-- [ ] Dark/light appearance sync with system settings
-- [ ] Export history as CSV / Markdown report
-
-## Tech Stack
-
-- **Language**: Swift 5.10+ / SwiftUI 4 + Combine
-- **Platform**: macOS (menu-bar app, no document-based UI)
-- **LLM backend**: Ollama (local-only, zero telemetry)
-- **Persistence**: native JSON (`JSONEncoder` / `JSONDecoder`)
-- **Build**: Xcode project with file-system-synchronized groups (`PBXFileSystemSynchronizedRootGroup`)
-
-## License
-
-Private — all rights reserved.
+- Wire `ActionInterpreter` output to actual skill executors via `TaskExecutor`
+- Replace simulation with real user input flow (command field → LLM → action dispatch)
+- Add pluggable provider abstraction beyond Ollama
+- Persist Prompts directory outside bundle for runtime editing
+- Swap agent list view to native `NSTableView` for scale

@@ -67,7 +67,6 @@ final class OllamaClient {
                     }
                     continuation.finish()
                 } catch {
-                    print("[OllamaClient] Request error: \(error)")
                     continuation.finish(throwing: error)
                 }
             }
@@ -76,17 +75,13 @@ final class OllamaClient {
 
     func isAvailable() async -> Bool {
         guard let url = baseURL else { return false }
-        print("[OllamaClient] Checking availability at \(url)...")
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.timeoutInterval = 5.0
         do {
             let (_, response) = try await URLSession.shared.data(for: request)
-            let ok = (response as? HTTPURLResponse)?.statusCode == 200
-            print("[OllamaClient] Availability check: \(ok ? "UP" : "DOWN")")
-            return ok
+            return (response as? HTTPURLResponse)?.statusCode == 200
         } catch {
-            print("[OllamaClient] Availability error: \(error)")
             return false
         }
     }

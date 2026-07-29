@@ -12,25 +12,16 @@ final class HotkeyManager {
     private let panelManager = StatusOverlayPanel.shared
     
     private var actions: [HotkeyTrigger: () -> Void] = [
-        .expandPressed: {
-            print("🔥 expand hotkey fired")
-            StatusOverlayPanel.shared.toggleExpansion()
-        }
+        .expandPressed: { StatusOverlayPanel.shared.toggleExpansion() }
     ]
     
     public func registerHotkeys() {
-        print("⌨️  [Hotkey] registerHotkeys called")
-
-        print("⌨️  [Hotkey] escape action registered")
         registerAction(for: .escapePressed) { [weak self] in
-            print("🔓 [Hotkey] escape action executing")
             self?.taskExecutor.resetProcessing()
             self?.panelManager.hideExpansion()
         }
-
-        print("⏱️  [Hotkey] starting global monitors")
+        
         start()
-        print("✅ [Hotkey] registration complete")
     }
 
     public func registerAction(for trigger: HotkeyTrigger, action: @escaping () -> Void) {
@@ -38,12 +29,10 @@ final class HotkeyManager {
     }
 
     func start() {
-        print("🌍 [Hotkey] adding global event monitor")
         NSEvent.addGlobalMonitorForEvents(matching: [.flagsChanged, .keyDown]) { [weak self] event in
             self?.handle(event)
         }
 
-        print("🏠 [Hotkey] adding local event monitor")
         NSEvent.addLocalMonitorForEvents(matching: [.flagsChanged, .keyDown]) { [weak self] event in
             self?.handle(event)
             return event
@@ -51,7 +40,6 @@ final class HotkeyManager {
     }
 
     private func handle(_ event: NSEvent) {
-        print("⚡ [Hotkey] event received: type=\(event.type.rawValue), keyCode=\(event.keyCode)")
         let ESC = 53
 
         if event.type == .keyDown && event.keyCode == ESC {

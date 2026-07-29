@@ -15,7 +15,6 @@ final class TaskExecutor {
         
         isProcessing = true
         
-        // TODO: Integration
         do { isProcessing = false }
     }
 }

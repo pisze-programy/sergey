@@ -11,8 +11,6 @@ struct SettingsView: View {
                     .fontWeight(.bold)
                     .padding(.bottom, 10)
 
-                // STT/Voice options removed. Use other input methods.
-
                 Divider()
 
                 VStack(alignment: .leading, spacing: 4) {

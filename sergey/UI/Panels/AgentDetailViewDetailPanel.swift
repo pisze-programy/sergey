@@ -13,7 +13,6 @@ struct AgentDetailViewDetailPanel: View {
     var body: some View {
         VStack(spacing: 0) {
             
-            // MARK: - Header
             HStack(spacing: 12) {
                 Button(action: onBack) {
                     Image(systemName: "chevron.left")
@@ -50,7 +49,6 @@ struct AgentDetailViewDetailPanel: View {
                 .padding(.top, 10)
                 .opacity(0.25)
             
-            // MARK: - Body
             if let a = agent {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
@@ -79,8 +77,6 @@ struct AgentDetailViewDetailPanel: View {
                         .background(Color.white.opacity(0.06))
                         .cornerRadius(10)
 
-                        // MARK: - Actions
-                        
                         VStack(spacing: 10) {
                             if a.state != .running {
                                 Button(action: {}) {

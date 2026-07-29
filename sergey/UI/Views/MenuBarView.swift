@@ -4,10 +4,8 @@ struct MenuBarView: View {
     @ObservedObject var settings = SettingsStore.shared
     
     var body: some View {
-        print("📱 [MenuBar] body computed")
-        return VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 4) {
             Button(action: {
-                print("📜 [MenuBar] history button tapped")
                 HistoryWindowManager.shared.show()
             }) {
                 Label("Agent History", systemImage: "clock.arrow.circlepath")
@@ -20,7 +18,6 @@ struct MenuBarView: View {
             Divider()
 
             Button(action: {
-                print("⚙️  [MenuBar] settings button tapped")
                 SettingsWindowManager.shared.show()
             }) {
                 Label("Settings", systemImage: "gearshape")
@@ -47,7 +44,6 @@ struct MenuBarView: View {
             Divider()
 
             Button(role: .destructive, action: {
-                print("⏹️  [MenuBar] quit button tapped")
                 NSApplication.shared.terminate(nil)
             }) {
                 Label("Quit", systemImage: "power")

@@ -3,8 +3,6 @@ import Foundation
 import Combine
 import SwiftUI
 
-// Borderless panel that can become key — required for reliable mouse event delivery.
-// vanilla NSPanel with .borderless defaults to canBecomeKey = false on macOS.
 final class KeyPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
@@ -28,11 +26,9 @@ final class StatusOverlayPanel: ObservableObject {
     }
 
     @MainActor func initialize(with statusService: AgentStatusService) {
-        print("🔨 [Panel] initialize called")
         self.statusService = statusService
         
         let frame = calculateFrame(expanded: isExpanded)
-        print("📐 [Panel] calculated frame: \(frame)")
         
         let newPanel = KeyPanel(
             contentRect: frame,
@@ -61,13 +57,13 @@ final class StatusOverlayPanel: ObservableObject {
         withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
             isExpanded = true
         }
-        // Delay frame update to let SwiftUI settle constraints first
+        
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(50))
             self.updatePanelFrame()
-            // Re-assert key status AFTER resize so the new area receives events
             self.panel?.makeKeyAndOrderFront(nil)
         }
+        
         NSApp.activate(ignoringOtherApps: true)
     }
 
@@ -76,11 +72,10 @@ final class StatusOverlayPanel: ObservableObject {
         withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
             isExpanded = false
         }
-        // Delay frame update to let SwiftUI settle constraints first
+        
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(50))
             self.updatePanelFrame()
-            // Re-assert key status AFTER resize
             self.panel?.makeKeyAndOrderFront(nil)
         }
     }
@@ -99,7 +94,6 @@ final class StatusOverlayPanel: ObservableObject {
     
     @MainActor private func updatePanelFrame() {
         guard let panel = panel else { return }
-        print("📐 [Panel] updatePanelFrame expanded=\(isExpanded)")
         panel.setFrame(calculateFrame(expanded: isExpanded), display: true)
     }
 

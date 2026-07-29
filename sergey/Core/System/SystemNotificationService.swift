@@ -15,13 +15,7 @@ final class SystemNotificationService {
     }
     
     private func requestPermission() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, error in
-            if let error = error {
-                print("Notification permission error: \(error)")
-            }
-            if granted {
-                print("Notification permission granted")
-            }
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in
         }
     }
     
@@ -31,7 +25,6 @@ final class SystemNotificationService {
         content.body = body
         content.sound = .default
         
-        // In a real scenario, we could adjust the sound or interruption level based on priority
         if priority == .critical {
             content.interruptionLevel = .critical
         } else if priority == .normal {
@@ -43,13 +36,9 @@ final class SystemNotificationService {
         let request = UNNotificationRequest(
             identifier: UUID().uuidString,
             content: content,
-            trigger: nil // Deliver immediately
+            trigger: nil
         )
         
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                print("Error sending notification: \(error)")
-            }
-        }
+        UNUserNotificationCenter.current().add(request)
     }
 }
