@@ -2,50 +2,47 @@ import SwiftUI
 
 struct StatusOverlayView: View {
     @EnvironmentObject var manager: StatusOverlayManager
-    
+    @FocusState private var isInputFieldFocused: Bool
+
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 0) {
-                HStack(spacing: 12) {
-                    Circle()
-                        .fill(manager.isActive ? Color.green : Color.gray)
-                        .frame(width: 12, height: 12)
-                        .shadow(color: manager.isActive ? Color.green : Color.red, radius: 4)
-                    
-                    Spacer()
-                    
-                    ZStack {
-                        Text(manager.statusMessage)
-                            .id(manager.statusMessage)
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.primary.opacity(0.8))
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                            .transition(.asymmetric(insertion: .move(edge: .bottom), removal: .move(edge: .top)))
-                    }
-                    .animation(.spring(response: 0.35, dampingFraction: 0.75), value: manager.statusMessage)
-                    .frame(maxWidth: .infinity)
-                    
-                    Spacer()
-                    
-                    Image(systemName: "chevron.up.chevron.down")
-                        .foregroundColor(.primary.opacity(0.6))
-                        .font(.system(size: 14))
+            StatusOverlayHeaderView(
+                isActive: manager.isActive,
+                statusMessage: manager.statusMessage,
+                isExpanded: manager.isExpanded,
+                onTap: {
+                    manager.isExpanded ? manager.hideExpansion() : manager.showExpansion()
                 }
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    manager.isExpanded ? nil : manager.showExpansion()
-                }
-                .padding(.horizontal, 15)
-                .frame(width: 350, height: 55, alignment: .center)
-            }
-            
+            )
+
             if manager.isExpanded {
-                ListPlaceholderView()
-                    .frame(maxHeight: 300)
-                    .padding(.top, 15)
-                    .padding(.bottom, 30)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                VStack(spacing: 15) {
+                    StatusOverlayInputField(
+                        text: $manager.userInput,
+                        isFocused: $isInputFieldFocused,
+                        onSubmit: manager.submitInput
+                    )
+
+                    Divider()
+                        .padding(.vertical, 5)
+                        .opacity(0.3)
+
+                    ScrollView {
+                        VStack(spacing: 12) {
+                            ForEach(0..<5) { index in
+                                AgentRowView(
+                                    name: "Agent \(index + 1)",
+                                    status: "Status: Running",
+                                    isRunning: true,
+                                    onTap: {
+                                        print("Clicked agent \(index + 1)")
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+                .padding(15)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
@@ -59,45 +56,14 @@ struct StatusOverlayView: View {
         }
         .contentShape(Rectangle())
         .animation(.spring(response: 0.35, dampingFraction: 0.75), value: manager.isExpanded)
-    }
-}
-
-struct ListPlaceholderView: View {
-    var body: some View {
-        ScrollView {
-            VStack(spacing: 12) {
-                ForEach(0..<5) { index in
-                    HStack(spacing: 15) {
-                        Image(systemName: "person.circle.fill")
-                            .font(.system(size: 24))
-                            .foregroundColor(.blue)
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Agent \(index + 1)")
-                                .font(.system(size: 15, weight: .semibold))
-                            Text("Status: Running")
-                                .font(.system(size: 12))
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        Spacer()
-                        
-                        Circle()
-                            .fill(Color.green)
-                            .frame(width: 8, height: 8)
-                    }
-                    .padding(.horizontal, 15)
-                    .padding(.vertical, 10)
-                    .background(Color.white.opacity(0.05))
-                    .cornerRadius(12)
-                    .onTapGesture {
-                        print("Clicked item \(index)")
-                    }
+        .onChange(of: manager.isExpanded) { expanded in
+            if expanded {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    isInputFieldFocused = true
                 }
+            } else {
+                isInputFieldFocused = false
             }
-            .padding(.horizontal, 15)
         }
-        .scrollIndicators(.hidden)
-        .clipped()
     }
 }

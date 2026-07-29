@@ -1,27 +1,27 @@
 import SwiftUI
 
-struct MenuBar: View {
+struct MenuBarView: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 4) {
             Button(action: {
                 HistoryStore.shared.startNewSession()
             }) {
                 Label("Start New Session", systemImage: "plus")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-                .buttonStyle(.plain)
-                .padding(.vertical, 4)
-                .padding(.horizontal, 8)
-            
+            .buttonStyle(.plain)
+            .padding(.vertical, 6)
+            .padding(.horizontal, 10)
+
             Button(action: {
                 HistoryWindowManager.shared.show()
             }) {
                 Label("Session History", systemImage: "clock.arrow.circlepath")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-                .buttonStyle(.plain)
-                .padding(.vertical, 4)
-                .padding(.horizontal, 8)
+            .buttonStyle(.plain)
+            .padding(.vertical, 6)
+            .padding(.horizontal, 10)
 
             Divider()
 
@@ -31,9 +31,9 @@ struct MenuBar: View {
                 Label("Settings", systemImage: "gearshape")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-                .buttonStyle(.plain)
-                .padding(.vertical, 4)
-                .padding(.horizontal, 8)
+            .buttonStyle(.plain)
+            .padding(.vertical, 6)
+            .padding(.horizontal, 10)
 
             Divider()
 
@@ -44,13 +44,14 @@ struct MenuBar: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .buttonStyle(.plain)
-            .padding(.vertical, 4)
-            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .padding(.horizontal, 10)
         }
-        .frame(width: 180)
+        .padding(6)
+        .frame(width: 200)
     }
 }
 
 #Preview {
-    MenuBar()
+    MenuBarView()
 }

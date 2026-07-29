@@ -13,6 +13,9 @@ class SettingsStore: ObservableObject {
     @Published var modelName: String {
         didSet { save() }
     }
+    @Published var isFocusModeEnabled: Bool = false {
+        didSet { save() }
+    }
 
     private init() {
         let home = FileManager.default.homeDirectoryForCurrentUser
@@ -26,21 +29,28 @@ class SettingsStore: ObservableObject {
            let decoded = try? JSONDecoder().decode(SettingsData.self, from: data) {
             self.ollamaURL = decoded.ollamaURL
             self.modelName = decoded.modelName
+            self.isFocusModeEnabled = decoded.isFocusModeEnabled
         } else {
             self.ollamaURL = defaultURL
             self.modelName = defaultModel
+            self.isFocusModeEnabled = false
         }
     }
 
     private func save() {
-        _ = SettingsData(
+        let data = SettingsData(
             ollamaURL: ollamaURL,
-            modelName: modelName
+            modelName: modelName,
+            isFocusModeEnabled: isFocusModeEnabled
         )
+        if let encoded = try? JSONEncoder().encode(data) {
+            try? encoded.write(to: configURL)
+        }
     }
 }
 
 struct SettingsData: Codable {
     let ollamaURL: String
     let modelName: String
+    let isFocusModeEnabled: Bool
 }

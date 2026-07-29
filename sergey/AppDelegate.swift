@@ -15,7 +15,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        SkillInitializer.shared.setup()
         HotkeyManager.shared.registerHotkeys()
         statusOverlay.show()
         startTextRotationTest()

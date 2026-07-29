@@ -8,7 +8,8 @@ struct AIBuddyApp: App {
 
     var body: some Scene {
         MenuBarExtra("Sergey", systemImage: "sparkles") {
-            MenuBar()
+            MenuBarView()
         }
+        .menuBarExtraStyle(.window)
     }
 }
