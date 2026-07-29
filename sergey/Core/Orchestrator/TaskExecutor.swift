@@ -1,22 +1,13 @@
 import Foundation
-import CoreGraphics
-import AppKit
-import SwiftUI
 
 final class TaskExecutor {
     private let ollama = OllamaClient()
-    private let statusOverlay = StatusOverlayManager.shared
+    private let service = AgentStatusService.shared
 
     private var isProcessing = false
-    private var currentLivePrompt: String = "" 
 
     func resetProcessing() {
         isProcessing = false
-    }
-
-    func startListening() {
-        guard !isProcessing else { return }
-        // Audio recording functionality removed. Use other input methods.
     }
 
     func executeRequest() async {

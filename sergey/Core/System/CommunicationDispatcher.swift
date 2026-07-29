@@ -4,7 +4,7 @@ final class CommunicationDispatcher {
     static let shared = CommunicationDispatcher()
     
     private let settings = SettingsStore.shared
-    private let overlay = StatusOverlayManager.shared
+    private let service = AgentStatusService.shared
     private let notifications = SystemNotificationService.shared
     
     private init() {}
@@ -26,14 +26,14 @@ final class CommunicationDispatcher {
                 body: message,
                 priority: priority
             )
-            overlay.updateStatus(message)
+            service.updateStatusMessage(message)
         }
     }
     
     /// Use this for purely UI status updates that shouldn't trigger system notifications
     func updateStatusOnly(_ text: String) {
         if !settings.isFocusModeEnabled {
-            overlay.updateStatus(text)
+            service.updateStatusMessage(text)
         }
     }
 }

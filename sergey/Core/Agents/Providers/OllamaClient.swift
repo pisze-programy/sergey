@@ -23,28 +23,17 @@ final class OllamaClient {
         SettingsStore.shared.modelName
     }
 
-    func generateResponse(systemPrompt: String, prompt: String, images: [Data] = []) -> AsyncThrowingStream<String, Error> {
+    func generateResponse(systemPrompt: String, prompt: String) -> AsyncThrowingStream<String, Error> {
         return AsyncThrowingStream { continuation in
             Task {
                 guard let url = baseURL else {
                     continuation.finish(throwing: OllamaError.invalidConfiguration("Invalid URL in Settings"))
                     return
                 }
-                
-                var contentParts: [[String: Any]] = [["type": "text", "text": prompt]]
-                if !images.isEmpty {
-                    for imageData in images {
-                        let base64Image = imageData.base64EncodedString()
-                        contentParts.append([
-                            "type": "image_url",
-                            "image_url": ["url": "data:image/png;base64,\(base64Image)"]
-                        ])
-                    }
-                }
 
                 let messages: [[String: Any]] = [
                     ["role": "system", "content": systemPrompt],
-                    ["role": "user", "content": contentParts]
+                    ["role": "user", "content": prompt]
                 ]
 
                 let body: [String: Any] = [

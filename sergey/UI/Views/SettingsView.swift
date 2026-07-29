@@ -39,6 +39,14 @@ struct SettingsView: View {
 
                 Divider()
 
+                Toggle(isOn: $store.isFocusModeEnabled) {
+                    Text("Focus Mode")
+                        .font(.headline)
+                }
+                .help("Suppress overlay updates. Only critical notifications are shown.")
+
+                Divider()
+
                 HStack {
                     Spacer()
                     Button("Close") {

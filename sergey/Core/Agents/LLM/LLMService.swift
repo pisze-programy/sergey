@@ -16,13 +16,12 @@ final class LLMService {
     func generateScopedResponse(
         systemPrompt: String,
         prompt: String,
-        images: [Data] = [],
         onChunk: LLMStreamHandler? = nil
     ) async throws -> LLMResponse {
         var fullText = ""
         
         do {
-            for try await chunk in client.generateResponse(systemPrompt: systemPrompt, prompt: prompt, images: images) {
+            for try await chunk in client.generateResponse(systemPrompt: systemPrompt, prompt: prompt) {
                 fullText += chunk
                 onChunk?(chunk)
             }

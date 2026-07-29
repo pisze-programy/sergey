@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct StatusOverlayHeaderView: View {
+struct StatusOverlayHeaderViewView: View {
     let isActive: Bool
     let statusMessage: String
     let isExpanded: Bool
@@ -22,7 +22,12 @@ struct StatusOverlayHeaderView: View {
                     .foregroundColor(.primary.opacity(0.8))
                     .lineLimit(1)
                     .truncationMode(.tail)
-                    .transition(.asymmetric(insertion: .move(edge: .bottom), removal: .move(edge: .top)))
+                    .transition(
+                        .asymmetric(
+                            insertion: .move(edge: .trailing).combined(with: .opacity),
+                            removal: .move(edge: .leading).combined(with: .opacity)
+                        )
+                    )
             }
             .animation(.spring(response: 0.35, dampingFraction: 0.75), value: statusMessage)
             .frame(maxWidth: .infinity)

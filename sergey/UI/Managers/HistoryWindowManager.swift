@@ -11,18 +11,24 @@ final class HistoryWindowManager {
 
             let hostingView = NSHostingView(rootView: HistoryView())
 
-            let windowWidth: CGFloat = 500
-            let windowHeight: CGFloat = 300
+            let windowWidth: CGFloat = 780
+            let windowHeight: CGFloat = 460
+
+            if let existing = self.window {
+                existing.contentView = hostingView
+                existing.makeKeyAndOrderFront(nil)
+                return
+            }
 
             let newWindow = NSWindow(
                 contentRect: NSRect(x: 0, y: 0, width: windowWidth, height: windowHeight),
-                styleMask: [.titled, .closable, .fullSizeContentView],
+                styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
                 backing: .buffered,
                 defer: false
             )
 
+            newWindow.title = "Agent History"
             newWindow.isReleasedWhenClosed = false
-            newWindow.ignoresMouseEvents = true
             newWindow.level = .floating
             newWindow.center()
             newWindow.contentView = hostingView
