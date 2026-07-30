@@ -10,12 +10,15 @@ final class KeyPanel: NSPanel {
 
 final class StatusOverlayPanel: ObservableObject {
     static let shared = StatusOverlayPanel()
-    
+
     @Published var isExpanded: Bool = false
     @Published var userInput: String = ""
-    
+    @Published var isRecording: Bool = false
+    @Published var currentAudioLevel: Double = 0
+
     private var panel: NSPanel?
     private weak var statusService: AgentStatusService?
+    private var isAnimatingFrame = false
 
     enum Layout {
         static let width: CGFloat = 350
@@ -23,82 +26,83 @@ final class StatusOverlayPanel: ObservableObject {
         static let expandedHeight: CGFloat = 400
         static let paddingX: CGFloat = 20
         static let paddingY: CGFloat = 20
+        static let cornerRadius: CGFloat = 20
     }
 
     @MainActor func initialize(with statusService: AgentStatusService) {
         self.statusService = statusService
-        
-        let frame = calculateFrame(expanded: isExpanded)
-        
+
         let newPanel = KeyPanel(
-            contentRect: frame,
-            styleMask: [.borderless],
+            contentRect: calculateFrame(expanded: isExpanded),
+            styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
         newPanel.isFloatingPanel = true
-        newPanel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        newPanel.level = .mainMenu + 1
+        newPanel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
+        newPanel.level = .floating
         newPanel.hidesOnDeactivate = false
         newPanel.backgroundColor = .clear
         newPanel.isOpaque = false
         newPanel.ignoresMouseEvents = false
-        
+        newPanel.hasShadow = false
+        newPanel.acceptsMouseMovedEvents = true
+
         let hostingView = NSHostingView(
             rootView: StatusOverlayFacadeView()
                 .environmentObject(statusService)
         )
+        hostingView.layer?.cornerRadius = Layout.cornerRadius
+        hostingView.layer?.masksToBounds = true
         newPanel.contentView = hostingView
         self.panel = newPanel
     }
 
     @MainActor func showExpansion() {
         guard !isExpanded else { return }
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-            isExpanded = true
-        }
-        
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(50))
-            self.updatePanelFrame()
-            self.panel?.makeKeyAndOrderFront(nil)
-        }
-        
+        isExpanded = true
+        animatePanelFrame()
+        panel?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 
     @MainActor func hideExpansion() {
         guard isExpanded else { return }
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-            isExpanded = false
-        }
-        
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(50))
-            self.updatePanelFrame()
-            self.panel?.makeKeyAndOrderFront(nil)
-        }
+        isExpanded = false
+        animatePanelFrame()
     }
 
     @MainActor func toggleExpansion() {
         if isExpanded { hideExpansion() } else { showExpansion() }
     }
 
-    func show() {
-        panel?.makeKeyAndOrderFront(nil)
-    }
+    func show() { panel?.makeKeyAndOrderFront(nil) }
+    func hide() { panel?.orderOut(nil) }
 
-    func hide() {
-        panel?.orderOut(nil)
-    }
-    
-    @MainActor private func updatePanelFrame() {
-        guard let panel = panel else { return }
-        panel.setFrame(calculateFrame(expanded: isExpanded), display: true)
+    @MainActor private func animatePanelFrame() {
+        guard !isAnimatingFrame else { return }
+        isAnimatingFrame = true
+
+        let targetFrame = calculateFrame(expanded: isExpanded)
+        guard let panel = panel else { isAnimatingFrame = false; return }
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.35
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            context.completionHandler = { [weak self] in self?.isAnimatingFrame = false }
+            panel.animator().setFrame(targetFrame, display: true, animate: true)
+        }
     }
 
     @MainActor private func calculateFrame(expanded: Bool) -> NSRect {
-        let screenFrame = NSScreen.main?.visibleFrame ?? .zero
+        let screen: NSScreen?
+        if let panel = panel, let panelScreen = panel.screen {
+            screen = panelScreen
+        } else {
+            screen = NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) })
+                ?? NSScreen.main
+        }
+        let screenFrame = screen?.visibleFrame ?? .zero
         let height = expanded ? Layout.expandedHeight : Layout.collapsedHeight
         let x = screenFrame.maxX - Layout.width - Layout.paddingX
         let y = screenFrame.minY + Layout.paddingY

@@ -16,7 +16,15 @@ class SettingsStore: ObservableObject {
     @Published var isFocusModeEnabled: Bool = false {
         didSet { save() }
     }
-
+    @Published var sttEnabled: Bool = true {
+        didSet { save() }
+    }
+    @Published var sttLanguageCode: String = "en" {
+        didSet { save() }
+    }
+    @Published var sttAutoSubmit: Bool = false {
+        didSet { save() }
+    }
     private init() {
         let home = FileManager.default.homeDirectoryForCurrentUser
         let configPath = home.appendingPathComponent(".sergey_config.json")
@@ -30,10 +38,16 @@ class SettingsStore: ObservableObject {
             self.ollamaURL = decoded.ollamaURL
             self.modelName = decoded.modelName
             self.isFocusModeEnabled = decoded.isFocusModeEnabled
+            self.sttEnabled = decoded.sttEnabled ?? true
+            self.sttLanguageCode = decoded.sttLanguageCode ?? "en"
+            self.sttAutoSubmit = decoded.sttAutoSubmit ?? false
         } else {
             self.ollamaURL = defaultURL
             self.modelName = defaultModel
             self.isFocusModeEnabled = false
+            self.sttEnabled = true
+            self.sttLanguageCode = "en"
+            self.sttAutoSubmit = false
         }
     }
 
@@ -41,7 +55,10 @@ class SettingsStore: ObservableObject {
         let data = SettingsData(
             ollamaURL: ollamaURL,
             modelName: modelName,
-            isFocusModeEnabled: isFocusModeEnabled
+            isFocusModeEnabled: isFocusModeEnabled,
+            sttEnabled: sttEnabled,
+            sttLanguageCode: sttLanguageCode,
+            sttAutoSubmit: sttAutoSubmit
         )
         if let encoded = try? JSONEncoder().encode(data) {
             try? encoded.write(to: configURL)
@@ -53,4 +70,7 @@ struct SettingsData: Codable {
     let ollamaURL: String
     let modelName: String
     let isFocusModeEnabled: Bool
+    let sttEnabled: Bool?
+    let sttLanguageCode: String?
+    let sttAutoSubmit: Bool?
 }

@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		78732CC8301B74CA0019D594 /* FluidAudio in Frameworks */ = {isa = PBXBuildFile; productRef = 78732CC7301B74CA0019D594 /* FluidAudio */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		78520E0C3013612F000AB71E /* sergey.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = sergey.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -36,6 +40,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				78732CC8301B74CA0019D594 /* FluidAudio in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -78,6 +83,7 @@
 			);
 			name = sergey;
 			packageProductDependencies = (
+				78732CC7301B74CA0019D594 /* FluidAudio */,
 			);
 			productName = sergey;
 			productReference = 78520E0C3013612F000AB71E /* sergey.app */;
@@ -107,6 +113,9 @@
 			);
 			mainGroup = 78520E033013612F000AB71E;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				78732CC6301B74CA0019D594 /* XCRemoteSwiftPackageReference "FluidAudio" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 78520E0D3013612F000AB71E /* Products */;
 			projectDirPath = "";
@@ -343,6 +352,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		78732CC6301B74CA0019D594 /* XCRemoteSwiftPackageReference "FluidAudio" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/FluidInference/FluidAudio.git";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		78732CC7301B74CA0019D594 /* FluidAudio */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 78732CC6301B74CA0019D594 /* XCRemoteSwiftPackageReference "FluidAudio" */;
+			productName = FluidAudio;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 78520E043013612F000AB71E /* Project object */;
 }

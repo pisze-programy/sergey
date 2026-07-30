@@ -25,9 +25,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         
         taskDispatcher = TaskDispatcher.shared
         taskDispatcher?.start()
+
+        Task.detached {
+            await ParakeetTranscriptionService.shared.preloadModel()
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        DictationOrchestrator.shared.forceCleanup()
         StatusOverlayPanel.shared.hide()
         self.taskExecutor.resetProcessing()
         taskDispatcher?.stop()

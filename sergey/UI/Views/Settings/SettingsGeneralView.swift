@@ -15,6 +15,8 @@ struct SettingsGeneralView: View {
                 connectionSection
                 modelSection
                 dividerOrnament
+                sttSection
+                dividerOrnament
                 focusModeSection
             }
             .padding(24)
@@ -60,6 +62,35 @@ struct SettingsGeneralView: View {
             Text("Suppress overlay updates. Only critical notifications are shown.")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
+        }
+    }
+
+    private var sttSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Speech-to-Text")
+                .font(.headline)
+            Text("Offline voice dictation using Parakeet TDT v3.")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+
+            Toggle(isOn: $store.sttEnabled) {
+                Text("Enable Dictation")
+            }
+            .padding(.top, 8)
+
+            Picker(selection: $store.sttLanguageCode) {
+                Text("English").tag("en")
+                Text("Polski").tag("pl")
+            } label: {
+                Text("Language")
+            }
+            .disabled(!store.sttEnabled)
+            .padding(.top, 4)
+
+            Toggle(isOn: $store.sttAutoSubmit) {
+                Text("Auto-send to LLM on Transcribe Finish")
+            }
+            .disabled(!store.sttEnabled)
         }
     }
 
