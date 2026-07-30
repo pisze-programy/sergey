@@ -83,6 +83,7 @@ struct StatusOverlayFacadeView: View {
     @FocusState private var focusedField: InputFieldFocus?
     @ObservedObject private var settings = SettingsStore.shared
     @ObservedObject private var orchestrator = DictationOrchestrator.shared
+    @ObservedObject private var healthService = OllamaHealthService.shared
 
     private var micIconName: String {
         switch orchestrator.dictationStatus {
@@ -109,8 +110,8 @@ struct StatusOverlayFacadeView: View {
         case .idle:
             return statusService.statusMessage
         case .listening:
-            let liveText = panelManager.userInput.trimmingCharacters(in: .whitespacesAndNewlines)
-            return liveText.isEmpty ? "Listening..." : liveText
+            let text = orchestrator.livePreviewText.trimmingCharacters(in: .whitespacesAndNewlines)
+            return text.isEmpty ? "Listening..." : text
         case .processing:
             return "Processing..."
         case .done:
@@ -151,10 +152,13 @@ struct StatusOverlayFacadeView: View {
     private func rootContent() -> some View {
         VStack(spacing: 0) {
             StatusOverlayHeaderViewView(
-                isActive: true,
+                isActive: healthService.isHealthy,
                 statusMessage: headerMessage,
                 isExpanded: panelManager.isExpanded,
-                onTap: toggleHeader
+                onTap: toggleHeader,
+                targetAppIcon: orchestrator.targetAppIcon,
+                targetAppName: orchestrator.targetAppName,
+                isDictationActive: isDictationActive
             )
             .overlay(alignment: .trailing) {
                 if isDictationActive {

@@ -12,22 +12,27 @@ enum NotificationPriority {
 final class SystemNotificationService {
     static let shared = SystemNotificationService()
     
-    private init() {
-        requestPermission()
-    }
+    private var permissionRequested = false
     
-    private func requestPermission() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in
-        }
+    private init() {}
+    
+    private func ensurePermission() {
+        guard !permissionRequested else { return }
+        permissionRequested = true
+        guard Bundle.main.bundleIdentifier != nil else { return }
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
     }
     
     func sendNotification(title: String, body: String, priority: NotificationPriority) {
+        ensurePermission()
+        guard Bundle.main.bundleIdentifier != nil else { return }
+        
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
         content.sound = .default
         
-if priority == .critical {
+        if priority == .critical {
             content.interruptionLevel = .critical
         } else if priority == .warning {
             content.interruptionLevel = .timeSensitive

@@ -136,3 +136,97 @@ struct SettingsQueueView: View {
         newTaskPrompt = ""
     }
 }
+
+
+private struct HealthIndicator: View {
+    @ObservedObject var healthService: OllamaHealthService
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(healthService.isHealthy ? Color.green : Color.red)
+                .frame(width: 8, height: 8)
+            Text(healthService.isHealthy ? "Connected" : "Disconnected")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            if let last = healthService.lastCheckedAt {
+                Text("· last check \(timeAgo(last))")
+                    .font(.caption2)
+                    .foregroundColor(.secondary.opacity(0.6))
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(nsColor: NSColor.controlBackgroundColor).opacity(0.5))
+    }
+
+    private func timeAgo(_ date: Date) -> String {
+        let interval = abs(date.timeIntervalSinceNow)
+        if interval < 60 { return "\(Int(interval))s ago" }
+        return "\(Int(interval / 60))m ago"
+    }
+}
+
+
+private struct TaskRow: View {
+    let task: QueuedTask
+    let isSelected: Bool
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Circle()
+                .fill(colorForStatus(task.status))
+                .frame(width: 7, height: 7)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(task.title)
+                    .font(.system(size: 13, weight: .medium))
+                    .lineLimit(1)
+                Text(statusLabel)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            if task.retryCount > 0 {
+                Text("Retry \(task.retryCount)/\(task.maxRetries)")
+                    .font(.caption2.monospaced())
+                    .foregroundColor(.red.opacity(0.7))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.red.opacity(0.08), in: Capsule())
+            }
+
+            if isSelected {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.caption)
+                    .foregroundColor(.accentColor)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(isSelected ? Color.accentColor.opacity(0.06) : Color.clear)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(isSelected ? Color.accentColor.opacity(0.3) : Color.primary.opacity(0.06), lineWidth: 1)
+        )
+    }
+
+    private var statusLabel: String {
+        task.status.title
+    }
+
+    private func colorForStatus(_ status: TaskStatus) -> Color {
+        switch status {
+            case .pending, .scheduled: return .orange
+            case .running: return .green
+            case .completed: return .blue
+            case .failed: return .red
+        }
+    }
+}

@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Section Header
-
 struct SettingsSectionHeader: View {
     let title: String
     let subtitle: String?
@@ -23,8 +21,6 @@ struct SettingsSectionHeader: View {
         }
     }
 }
-
-// MARK: - Toggle Row
 
 struct SettingsToggleRow: View {
     let title: String
@@ -59,8 +55,6 @@ struct SettingsToggleRow: View {
     }
 }
 
-// MARK: - Picker Row
-
 struct SettingsPickerRow<Label: View, SelectionValue: Hashable, Content: View>: View {
     let label: Label
     @Binding var selection: SelectionValue
@@ -91,7 +85,6 @@ struct SettingsPickerRow<Label: View, SelectionValue: Hashable, Content: View>: 
     }
 }
 
-// MARK: - Text Field Row
 
 struct SettingsTextFieldRow: View {
     let title: String
@@ -123,7 +116,6 @@ struct SettingsTextFieldRow: View {
     }
 }
 
-// MARK: - Settings Divider
 
 struct SettingsDivider: View {
     var body: some View {
@@ -132,7 +124,6 @@ struct SettingsDivider: View {
     }
 }
 
-// MARK: - Page Header
 
 struct SettingsPageHeader<Trailing: View>: View {
     let title: String
@@ -155,7 +146,6 @@ struct SettingsPageHeader<Trailing: View>: View {
     }
 }
 
-// MARK: - Single Pane (Queue, General, Records)
 
 struct SettingsPane<Trailing: View, Content: View>: View {
     let title: String
@@ -177,7 +167,6 @@ struct SettingsPane<Trailing: View, Content: View>: View {
     }
 }
 
-// MARK: - Split Pane (History, Agents)
 
 struct SettingsSplitPane<Left: View, Right: View>: View {
     let leftWidth: CGFloat
@@ -202,7 +191,6 @@ struct SettingsSplitPane<Left: View, Right: View>: View {
     }
 }
 
-// MARK: - Settings Card
 
 struct SettingsCard<Content: View>: View {
     @ViewBuilder let content: Content
@@ -228,7 +216,6 @@ struct SettingsCard<Content: View>: View {
     }
 }
 
-// MARK: - Section Container
 
 struct SettingsSectionContainer<Content: View>: View {
     let header: SettingsSectionHeader?

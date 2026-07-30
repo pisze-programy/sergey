@@ -6,14 +6,14 @@ struct TextInsertionService {
     private static let log = Logger(subsystem: "sergey", category: "TextInsertion")
 
     @discardableResult
-    static func insertText(_ text: String) -> Bool {
+    static func insertText(_ text: String, targetAppPID: pid_t? = nil) -> Bool {
         guard !text.isEmpty else { return false }
 
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
 
-        if insertViaAccessibility(text) {
+        if insertViaAccessibility(text, targetAppPID: targetAppPID) {
             return true
         }
 
@@ -21,9 +21,16 @@ struct TextInsertionService {
         return false
     }
 
-    private static func insertViaAccessibility(_ text: String) -> Bool {
-        guard let app = NSWorkspace.shared.frontmostApplication else { return false }
-        let appElement = AXUIElementCreateApplication(app.processIdentifier)
+    private static func insertViaAccessibility(_ text: String, targetAppPID: pid_t?) -> Bool {
+        let pid: pid_t
+        if let targetAppPID = targetAppPID {
+            pid = targetAppPID
+        } else {
+            guard let app = NSWorkspace.shared.frontmostApplication else { return false }
+            pid = app.processIdentifier
+        }
+
+        let appElement = AXUIElementCreateApplication(pid)
 
         var focusedValue: CFTypeRef?
         guard AXUIElementCopyAttributeValue(

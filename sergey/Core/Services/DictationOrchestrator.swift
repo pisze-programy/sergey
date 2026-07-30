@@ -9,6 +9,9 @@ final class DictationOrchestrator: ObservableObject {
 
     @Published var dictationStatus: DictationStatus = .idle
     @Published var currentAudioLevel: Double = 0
+    @Published var targetAppIcon: NSImage?
+    @Published var targetAppName: String?
+    @Published var livePreviewText: String = ""
 
     var statusMessage: String {
         switch dictationStatus {
@@ -31,7 +34,8 @@ final class DictationOrchestrator: ObservableObject {
 
     private let minSamplesForTranscription = 8_000
     private let livePreviewInterval: UInt64 = 1_500_000_000
-    private var lastLiveText: String = ""
+    /// Captured before the overlay appears, used for AX text insertion.
+    private var targetAppProcessID: pid_t?
 
     private init() {
         audioRecorder.$audioLevel
@@ -82,6 +86,10 @@ final class DictationOrchestrator: ObservableObject {
     func cancel() {
         livePreviewTask?.cancel()
         livePreviewTask = nil
+        targetAppProcessID = nil
+        targetAppIcon = nil
+        targetAppName = nil
+        livePreviewText = ""
         switch dictationStatus {
         case .listening:
             audioRecorder.cancelRecording()
@@ -100,6 +108,10 @@ final class DictationOrchestrator: ObservableObject {
         livePreviewTask = nil
         audioRecorder.cleanup()
         currentTaskID = nil
+        targetAppProcessID = nil
+        targetAppIcon = nil
+        targetAppName = nil
+        livePreviewText = ""
         resetToIdle()
     }
 
@@ -107,8 +119,14 @@ final class DictationOrchestrator: ObservableObject {
         guard settings.sttEnabled else { setError("STT disabled in settings"); return }
         guard currentTaskID == nil else { return }
 
+        // Capture target app BEFORE overlay appears and becomes frontmost.
+        let frontApp = NSWorkspace.shared.frontmostApplication
+        targetAppProcessID = frontApp?.processIdentifier
+        targetAppIcon = frontApp?.icon
+        targetAppName = frontApp?.localizedName
+
         panel.userInput = ""
-        lastLiveText = ""
+        livePreviewText = ""
         dictationStatus = .listening
 
         Task { @Sendable [weak self] in
@@ -126,7 +144,7 @@ final class DictationOrchestrator: ObservableObject {
     }
 
     private func startLivePreview() async {
-        lastLiveText = ""
+        livePreviewText = ""
         livePreviewTask = Task { [weak self] in
             guard let self = self else { return }
 
@@ -141,16 +159,7 @@ final class DictationOrchestrator: ObservableObject {
                         let trimmed = partial.trimmingCharacters(in: .whitespacesAndNewlines)
                         if !trimmed.isEmpty {
                             await MainActor.run {
-                                let diff: String
-                                if trimmed.hasPrefix(self.lastLiveText) {
-                                    diff = String(trimmed.dropFirst(self.lastLiveText.count)).trimmingCharacters(in: .whitespaces)
-                                } else {
-                                    diff = trimmed
-                                }
-                                if !diff.isEmpty {
-                                    self.panel.userInput = diff
-                                }
-                                self.lastLiveText = trimmed
+                                self.livePreviewText = trimmed
                             }
                         }
                     } catch {}
@@ -216,7 +225,8 @@ final class DictationOrchestrator: ObservableObject {
                     }
                     self.dictationStatus = .done
 
-                    let inserted = TextInsertionService.insertText(trimmed)
+                    let inserted = TextInsertionService.insertText(trimmed, targetAppPID: self.targetAppProcessID)
+                    self.targetAppProcessID = nil
                     if self.settings.sttSaveRecords {
                         let record = STTRecord(
                             text: trimmed,
@@ -251,6 +261,10 @@ final class DictationOrchestrator: ObservableObject {
 
     private func resetToIdle() {
         currentTaskID = nil
+        targetAppProcessID = nil
+        targetAppIcon = nil
+        targetAppName = nil
+        livePreviewText = ""
         dictationStatus = .idle
     }
 

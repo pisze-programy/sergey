@@ -27,7 +27,6 @@ final class TaskQueueManager: ObservableObject {
         load()
     }
     
-    // MARK: - Enqueue
     
     func enqueue(_ task: QueuedTask) {
         tasks.append(task)
@@ -41,7 +40,6 @@ final class TaskQueueManager: ObservableObject {
         save()
     }
     
-    // MARK: - Dequeue
     
     func dequeueNextReadyTask() -> QueuedTask? {
         let now = Date()
@@ -56,7 +54,6 @@ final class TaskQueueManager: ObservableObject {
         }.first
     }
     
-    // MARK: - State Transitions
     
     func markRunning(_ taskId: UUID, assignedToAgent agentId: UUID? = nil) -> QueuedTask? {
         guard let index = tasks.firstIndex(where: { $0.id == taskId && ($0.status == .pending || $0.status == .scheduled) }) else { return nil }
@@ -113,7 +110,6 @@ final class TaskQueueManager: ObservableObject {
         return true
     }
     
-    // MARK: - Cleanup
     
     func purgeCompleted(days: Int = 7) {
         let cutoff = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
@@ -126,7 +122,6 @@ final class TaskQueueManager: ObservableObject {
         save()
     }
     
-    // MARK: - Stats
     
     var stats: QueueStats {
         QueueStats(
@@ -138,7 +133,6 @@ final class TaskQueueManager: ObservableObject {
         )
     }
     
-    // MARK: - Persistence
     
     private func load() {
         if let data = try? Data(contentsOf: queueURL),

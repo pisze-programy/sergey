@@ -47,7 +47,6 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Sidebar
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -93,7 +92,6 @@ struct SettingsView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Content Area
 
     @ViewBuilder
     private var contentArea: some View {

@@ -22,7 +22,6 @@ class AgentDefinitionStore: ObservableObject {
         fetchOllamaModels()
     }
 
-    // MARK: - CRUD
 
     func add(_ definition: AgentDefinitionModel) {
         definitions.insert(definition, at: 0)
@@ -41,7 +40,6 @@ class AgentDefinitionStore: ObservableObject {
         save()
     }
 
-    // MARK: - Persistence
 
     private func load() {
         if let data = try? Data(contentsOf: definitionsURL),
@@ -55,7 +53,6 @@ class AgentDefinitionStore: ObservableObject {
         try? encoded.write(to: definitionsURL)
     }
 
-    // MARK: - Ollama Models
 
     func fetchOllamaModels() {
         Task {

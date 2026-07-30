@@ -28,6 +28,9 @@ class SettingsStore: ObservableObject {
     @Published var sttSaveRecords: Bool = true {
         didSet { save() }
     }
+    @Published var onboardingShown: Bool = false {
+        didSet { save() }
+    }
     private init() {
         let home = FileManager.default.homeDirectoryForCurrentUser
         let configPath = home.appendingPathComponent(".sergey_config.json")
@@ -45,6 +48,7 @@ class SettingsStore: ObservableObject {
             self.sttLanguageCode = decoded.sttLanguageCode ?? "en"
             self.sttAutoSubmit = decoded.sttAutoSubmit ?? false
             self.sttSaveRecords = decoded.sttSaveRecords ?? true
+            self.onboardingShown = decoded.onboardingShown ?? false
         } else {
             self.ollamaURL = defaultURL
             self.modelName = defaultModel
@@ -53,6 +57,7 @@ class SettingsStore: ObservableObject {
             self.sttLanguageCode = "en"
             self.sttAutoSubmit = false
             self.sttSaveRecords = true
+            self.onboardingShown = false
         }
     }
 
@@ -64,7 +69,8 @@ class SettingsStore: ObservableObject {
             sttEnabled: sttEnabled,
             sttLanguageCode: sttLanguageCode,
             sttAutoSubmit: sttAutoSubmit,
-            sttSaveRecords: sttSaveRecords
+            sttSaveRecords: sttSaveRecords,
+            onboardingShown: onboardingShown
         )
         if let encoded = try? JSONEncoder().encode(data) {
             try? encoded.write(to: configURL)
@@ -80,4 +86,5 @@ struct SettingsData: Codable {
     let sttLanguageCode: String?
     let sttAutoSubmit: Bool?
     let sttSaveRecords: Bool?
+    let onboardingShown: Bool?
 }

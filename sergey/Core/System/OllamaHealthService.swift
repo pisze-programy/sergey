@@ -5,7 +5,7 @@ import Combine
 final class OllamaHealthService: ObservableObject {
     static let shared = OllamaHealthService()
     
-    private var _isHealthy: Bool = true { didSet { objectWillChange.send() } }
+    private var _isHealthy: Bool = false { didSet { objectWillChange.send() } }
     private var _lastCheckedAt: Date? { didSet { objectWillChange.send() } }
     private var _consecutiveFailures: Int = 0 { didSet { objectWillChange.send() } }
     
