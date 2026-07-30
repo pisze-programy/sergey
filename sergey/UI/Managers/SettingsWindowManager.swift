@@ -11,12 +11,12 @@ final class SettingsWindowManager {
 
             let hostingView = NSHostingView(rootView: SettingsView())
 
-            let windowWidth: CGFloat = 400
-            let windowHeight: CGFloat = 500
+            let windowWidth: CGFloat = 900
+            let windowHeight: CGFloat = 580
 
-            if let window = self.window {
-                window.contentView = hostingView
-                window.makeKeyAndOrderFront(nil)
+            if let existing = self.window {
+                existing.contentView = hostingView
+                existing.makeKeyAndOrderFront(nil)
             } else {
                 let newWindow = NSWindow(
                     contentRect: NSRect(x: 0, y: 0, width: windowWidth, height: windowHeight),
