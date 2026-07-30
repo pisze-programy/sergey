@@ -24,22 +24,30 @@ class HistoryStore: ObservableObject {
     }
 
     func appendLog(_ log: AgentLog, forAgentNamed agentName: String) {
-        DispatchQueue.main.async {
-            if let matchedIndex = self.data.agents.firstIndex(where: { $0.name == agentName }) {
-                var matchedAgent = self.data.agents[matchedIndex]
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            var data = self.data
+
+            if let matchedIndex = data.agents.firstIndex(where: { $0.name == agentName }) {
+                var matchedAgent = data.agents[matchedIndex]
                 matchedAgent.logs.insert(log, at: 0)
-                self.data.agents[matchedIndex] = matchedAgent
+                data.agents[matchedIndex] = matchedAgent
             } else {
                 let newAgent = HistoryRecordAgent(name: agentName, logs: [log])
-                self.data.agents.append(newAgent)
+                data.agents.append(newAgent)
             }
+
+            self.data = data
             self.save()
         }
     }
 
     func deleteAgent(id: UUID) {
-        DispatchQueue.main.async {
-            self.data.agents.removeAll(where: { $0.id == id })
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            var data = self.data
+            data.agents.removeAll(where: { $0.id == id })
+            self.data = data
             self.save()
         }
     }
@@ -54,7 +62,8 @@ class HistoryStore: ObservableObject {
     }
 
     func clearAllHistory() {
-        DispatchQueue.main.async {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
             self.data = HistoryDataRoot(agents: [])
             self.save()
         }

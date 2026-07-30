@@ -3,6 +3,7 @@ import Foundation
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let taskExecutor = TaskExecutor()
+    private var simulationOrchestrator: SimulationOrchestrator?
     
     func applicationWillFinishLaunching(_ notification: Notification) {
         let runningApps = NSWorkspace.shared.runningApplications
@@ -22,7 +23,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panelManager.initialize(with: agentService)
         panelManager.show()
         
-        SimulationOrchestrator(agentService).start()
+        simulationOrchestrator = SimulationOrchestrator(agentService)
+        simulationOrchestrator?.start()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
