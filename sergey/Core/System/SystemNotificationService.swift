@@ -3,7 +3,9 @@ import UserNotifications
 
 enum NotificationPriority {
     case critical
+    case warning
     case normal
+    case info
     case low
 }
 
@@ -25,10 +27,14 @@ final class SystemNotificationService {
         content.body = body
         content.sound = .default
         
-        if priority == .critical {
+if priority == .critical {
             content.interruptionLevel = .critical
-        } else if priority == .normal {
+        } else if priority == .warning {
             content.interruptionLevel = .timeSensitive
+        } else if priority == .normal {
+            content.interruptionLevel = .active
+        } else if priority == .info {
+            content.interruptionLevel = .passive
         } else {
             content.interruptionLevel = .passive
         }

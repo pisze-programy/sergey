@@ -38,9 +38,38 @@ final class AgentStatusService: ObservableObject {
         }
     }
     
+    func assignTask(_ taskId: UUID, toAgent agentId: UUID) {
+        if let index = activeAgents.firstIndex(where: { $0.id == agentId }) {
+            var agent = activeAgents[index]
+            agent.activeTaskId = taskId
+            agent.state = .running
+            activeAgents[index] = agent
+            
+            HistoryStore.shared.appendLog(
+                AgentLog(statusTitle: "Assigned", workDescription: "Task \(taskId.uuidString.prefix(8))"),
+                forAgentNamed: agent.name
+            )
+        }
+    }
+    
+    func releaseTask(fromAgent agentId: UUID) {
+        if let index = activeAgents.firstIndex(where: { $0.id == agentId }) {
+            var agent = activeAgents[index]
+            agent.activeTaskId = nil
+            agent.state = .inactive
+            activeAgents[index] = agent
+            
+            HistoryStore.shared.appendLog(
+                AgentLog(statusTitle: "Released", workDescription: ""),
+                forAgentNamed: agent.name
+            )
+        }
+    }
+    
     func updateStatusMessage(_ text: String) {
         withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
             self.statusMessage = text
         }
     }
 }
+

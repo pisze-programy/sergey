@@ -6,6 +6,7 @@ public struct AgentModel: Identifiable, Equatable {
     public var name: String
     public var workDescription: String
     public var state: StateFlag
+    public var activeTaskId: UUID?
     
     public enum StateFlag: Int, CaseIterable, Codable {
         case running, stopped, inactive

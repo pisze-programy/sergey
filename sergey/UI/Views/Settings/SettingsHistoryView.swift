@@ -1,4 +1,219 @@
 import SwiftUI
+import Foundation
+
+struct SettingsQueueView: View {
+    @StateObject private var queueManager = TaskQueueManager.shared
+    @ObservedObject private var healthService = OllamaHealthService.shared
+    
+    @State private var newTaskTitle: String = ""
+    @State private var newTaskPrompt: String = ""
+    @State private var selectedTasks: Set<UUID> = []
+    
+    let columns = [
+        GridItem(.adaptive(minimum: 200, maximum: .infinity))
+    ]
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            statsHeader
+            
+            Divider()
+            
+            HStack(spacing: 8) {
+                TextField("Task title", text: $newTaskTitle)
+                    .textFieldStyle(.roundedBorder)
+                
+                Button(action: enqueueTask) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(.accentColor)
+                }
+                .disabled(newTaskTitle.isEmpty)
+                .buttonStyle(.plain)
+            }
+            
+            Divider()
+            
+            taskList
+            
+            HStack {
+                Button("Retry Selected") {
+                    selectedTasks.forEach { queueManager.retryTask($0) }
+                    selectedTasks.removeAll()
+                }
+                .disabled(selectedTasks.isEmpty || queueManager.tasks.filter({ $0.status == .failed }).isEmpty)
+                
+                Spacer()
+                
+                Button("Clear Completed") {
+                    queueManager.purgeCompleted(days: 0)
+                }
+                .foregroundColor(.secondary)
+                
+                Button("Clear All") {
+                    queueManager.clearAll()
+                }
+                .foregroundColor(.red)
+            }
+        }
+        .padding()
+    }
+    
+    private var statsHeader: some View {
+        let s = queueManager.stats
+        
+        return HStack(spacing: 24) {
+            statBox(count: s.totalCount, label: "Total", color: .primary)
+            statBox(count: s.pendingCount, label: "Pending", color: .orange)
+            statBox(count: s.runningCount, label: "Running", color: .green)
+            statBox(count: s.completedCount, label: "Completed", color: .blue)
+            statBox(count: s.failedCount, label: "Failed", color: .red)
+            
+            Spacer()
+            
+            HealthIndicator(healthService: healthService)
+        }
+    }
+    
+    @ViewBuilder
+    private func statBox(count: Int, label: String, color: Color) -> some View {
+        VStack(spacing: 4) {
+            Text("\(count)")
+                .font(.system(size: 28, weight: .bold))
+                .foregroundColor(color)
+            
+            Text(label)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .frame(minWidth: 70)
+    }
+    
+    private var taskList: some View {
+        ScrollView {
+            LazyVGrid(columns: columns, spacing: 8) {
+                ForEach(queueManager.tasks) { task in
+                    TaskRow(task: task, isSelected: selectedTasks.contains(task.id))
+                        .onTapGesture {
+                            withAnimation(.easeInOut(duration: 0.1)) {
+                                if selectedTasks.contains(task.id) {
+                                    selectedTasks.remove(task.id)
+                                } else {
+                                    selectedTasks.insert(task.id)
+                                }
+                            }
+                        }
+                }
+            }
+        }
+    }
+    
+    private func enqueueTask() {
+        let task = QueuedTask(
+            title: newTaskTitle,
+            prompt: newTaskPrompt.isEmpty ? "Complete task: \(newTaskTitle)" : newTaskPrompt
+        )
+        queueManager.enqueue(task)
+        newTaskTitle = ""
+        newTaskPrompt = ""
+    }
+}
+
+struct TaskRow: View {
+    let task: QueuedTask
+    let isSelected: Bool
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            statusIcon
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(task.title)
+                    .font(.subheadline)
+                    .lineLimit(1)
+                
+                HStack(spacing: 8) {
+                    Text(task.status.title)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    
+                    if task.retryCount > 0 {
+                        Text("Retry: \(task.retryCount)/\(task.maxRetries)")
+                            .font(.caption2)
+                            .foregroundColor(.orange)
+                    }
+                    
+                    if let reason = task.failureReason, !reason.isEmpty {
+                        Text(reason)
+                            .font(.caption2)
+                            .foregroundColor(.red)
+                            .lineLimit(1)
+                    }
+                }
+            }
+            
+            Spacer()
+            
+            Text(task.createdAt.formatted(date: .omitted, time: .shortened))
+                .font(.caption2)
+                .foregroundColor(.secondary)
+            
+            Image(systemName: "chevron.right")
+                .font(.caption2)
+                .foregroundColor(Color.secondary.opacity(0.5))
+        }
+        .padding(10)
+        .background(Color(NSColor.controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
+    }
+    
+    private var statusIcon: some View {
+        Image(systemName: iconFor(task.status))
+            .foregroundColor(colorFor(task.status))
+            .frame(width: 20)
+    }
+    
+    private func iconFor(_ status: TaskStatus) -> String {
+        switch status {
+            case .pending: return "clock"
+            case .scheduled: return "calendar.badge.clock"
+            case .running: return "play.fill"
+            case .completed: return "checkmark.circle.fill"
+            case .failed: return "xmark circle.fill"
+        }
+    }
+    
+    private func colorFor(_ status: TaskStatus) -> Color {
+        switch status {
+            case .pending: return .orange
+            case .scheduled: return .blue
+            case .running: return .green
+            case .completed: return .gray
+            case .failed: return .red
+        }
+    }
+}
+
+struct HealthIndicator: View {
+    @ObservedObject var healthService: OllamaHealthService
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(healthService.isHealthy ? Color.green : Color.red)
+                .frame(width: 10, height: 10)
+            
+            Text(healthService.isHealthy ? "Ollama Online" : "Ollama Offline")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            if let last = healthService.lastCheckedAt {
+                Text("(\(last.formatted(date: .omitted, time: .shortened)))")
+                    .font(.caption2)
+                    .foregroundColor(Color.secondary.opacity(0.5))
+            }
+        }
+    }
+}
 
 struct SettingsHistoryView: View {
     @ObservedObject var historyStore = HistoryStore.shared

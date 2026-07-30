@@ -3,6 +3,7 @@ import SwiftUI
 enum SettingsSection: String, CaseIterable, Identifiable {
     case history
     case agents
+    case queue
     case general
 
     var id: String { rawValue }
@@ -11,6 +12,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         switch self {
             case .history: return "History"
             case .agents: return "Agents"
+            case .queue: return "Queue"
             case .general: return "General"
         }
     }
@@ -19,6 +21,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         switch self {
             case .history: return "clock.arrow.circlepath"
             case .agents: return "person.2.fill"
+            case .queue: return "list.bullet.rectangle"
             case .general: return "gearshape"
         }
     }
@@ -95,6 +98,8 @@ struct SettingsView: View {
                     SettingsHistoryView()
                 case .agents:
                     SettingsAgentsView()
+                case .queue:
+                    SettingsQueueView()
                 case .general:
                     SettingsGeneralView()
             }

@@ -3,7 +3,7 @@ import Foundation
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let taskExecutor = TaskExecutor()
-    private var simulationOrchestrator: SimulationOrchestrator?
+    private var taskDispatcher: TaskDispatcher?
     
     func applicationWillFinishLaunching(_ notification: Notification) {
         let runningApps = NSWorkspace.shared.runningApplications
@@ -23,12 +23,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panelManager.initialize(with: agentService)
         panelManager.show()
         
-        simulationOrchestrator = SimulationOrchestrator(agentService)
-        simulationOrchestrator?.start()
+        taskDispatcher = TaskDispatcher.shared
+        taskDispatcher?.start()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         StatusOverlayPanel.shared.hide()
         self.taskExecutor.resetProcessing()
+        taskDispatcher?.stop()
     }
 }
