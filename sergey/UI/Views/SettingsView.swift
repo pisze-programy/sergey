@@ -1,28 +1,31 @@
 import SwiftUI
 
 enum SettingsSection: String, CaseIterable, Identifiable {
+    case general
+    case stt
     case history
     case agents
     case queue
-    case general
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
+            case .general: return "General"
+            case .stt: return "Records"
             case .history: return "History"
             case .agents: return "Agents"
             case .queue: return "Queue"
-            case .general: return "General"
         }
     }
 
     var icon: String {
         switch self {
+            case .general: return "gearshape"
+            case .stt: return "waveform"
             case .history: return "clock.arrow.circlepath"
             case .agents: return "person.2.fill"
             case .queue: return "list.bullet.rectangle"
-            case .general: return "gearshape"
         }
     }
 }
@@ -82,8 +85,10 @@ struct SettingsView: View {
                 Spacer()
             }
             .padding(8)
+            .frame(maxWidth: .infinity)
             .background(selectedSection == section ? Color.accentColor.opacity(0.15) : .clear, in: RoundedRectangle(cornerRadius: 6))
             .foregroundColor(selectedSection == section ? .accentColor : .primary)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
@@ -94,14 +99,16 @@ struct SettingsView: View {
     private var contentArea: some View {
         Group {
             switch selectedSection {
+                case .general:
+                    SettingsGeneralView()
+                case .stt:
+                    SettingsSTTView()
                 case .history:
                     SettingsHistoryView()
                 case .agents:
                     SettingsAgentsView()
                 case .queue:
                     SettingsQueueView()
-                case .general:
-                    SettingsGeneralView()
             }
         }
         .transition(.opacity)

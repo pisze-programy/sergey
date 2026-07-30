@@ -8,111 +8,45 @@ struct AgentEditorView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                headerSection
-                Divider()
-                nameSection
-                Divider()
-                descriptionSection
-                Divider()
-                systemPromptSection
-                Divider()
-                modelSection
+            VStack(alignment: .leading, spacing: 20) {
+                Text("Edit Agent")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+
+                SettingsDivider()
+
+                SettingsSectionContainer("Agent Name") {
+                    SettingsTextFieldRow("", placeholder: "e.g. Researcher", text: $definition.name)
+                }
+
+                SettingsSectionContainer("Description", subtitle: "A short role description — when does this agent perform best?") {
+                    TextField("e.g. Investigates topics and synthesizes findings",
+                              text: $definition.description,
+                              axis: .vertical)
+                    .textFieldStyle(.roundedBorder)
+                    .lineLimit(2...4)
+                }
+
+                SettingsSectionContainer("System Prompt", subtitle: "The system prompt that defines this agent's behavior and capabilities.") {
+                    TextField("You are a helpful assistant...",
+                              text: $definition.systemPrompt,
+                              axis: .vertical)
+                    .textFieldStyle(.roundedBorder)
+                    .lineLimit(6...20)
+                }
+
+                SettingsSectionContainer("Model", subtitle: "The Ollama model this agent should use.") {
+                    modelSelector
+                }
+
                 footerActions
             }
             .padding(24)
         }
     }
 
-    private var headerSection: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "brain.fill")
-                .font(.title3)
-                .foregroundColor(.blue)
-            Text("Edit Agent")
-                .font(.title2)
-                .fontWeight(.semibold)
-            Spacer()
-        }
-    }
-
-    private var nameSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 4) {
-                Image(systemName: "textformat")
-                    .foregroundColor(.secondary)
-                    .font(.caption)
-                Text("Agent Name")
-                    .font(.headline)
-            }
-            TextField(
-                "e.g. Researcher",
-                text: $definition.name,
-                onCommit: { save() }
-            )
-            .textFieldStyle(.roundedBorder)
-        }
-    }
-
-    private var descriptionSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 4) {
-                Image(systemName: "quote.bubble")
-                    .foregroundColor(.secondary)
-                    .font(.caption)
-                Text("Description")
-                    .font(.headline)
-            }
-            Text("A short role description — when does this agent perform best?")
-                .font(.caption)
-                .foregroundColor(.secondary)
-
-            TextField(
-                "e.g. Investigates topics and synthesizes findings",
-                text: $definition.description,
-                axis: .vertical
-            )
-            .textFieldStyle(.roundedBorder)
-            .lineLimit(2...4)
-        }
-    }
-
-    private var systemPromptSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 4) {
-                Image(systemName: "terminal")
-                    .foregroundColor(.secondary)
-                    .font(.caption)
-                Text("System Prompt")
-                    .font(.headline)
-            }
-            Text("The system prompt that defines this agent's behavior and capabilities.")
-                .font(.caption)
-                .foregroundColor(.secondary)
-
-            TextField(
-                "You are a helpful assistant...",
-                text: $definition.systemPrompt,
-                axis: .vertical
-            )
-            .textFieldStyle(.roundedBorder)
-            .lineLimit(6...20)
-        }
-    }
-
-    private var modelSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 4) {
-                Image(systemName: "cpu")
-                    .foregroundColor(.secondary)
-                    .font(.caption)
-                Text("Model")
-                    .font(.headline)
-            }
-            Text("The Ollama model this agent should use.")
-                .font(.caption)
-                .foregroundColor(.secondary)
-
+    private var modelSelector: some View {
+        Group {
             if store.availableModels.isEmpty {
                 HStack(spacing: 6) {
                     Image(systemName: "exclamationmark.triangle")
@@ -126,12 +60,9 @@ struct AgentEditorView: View {
                     }
                     .font(.caption)
                 }
-
-                TextField(
-                    "gemma4:26mu-a4b-it-q4_K_M",
-                    text: $definition.modelName,
-                    onCommit: { save() }
-                )
+                TextField("gemma4:26mu-a4b-it-q4_K_M",
+                          text: $definition.modelName,
+                          onCommit: { save() })
                 .textFieldStyle(.roundedBorder)
             } else {
                 Menu {

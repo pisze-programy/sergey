@@ -1,9 +1,12 @@
 import SwiftUI
 
 struct MenuBarView: View {
+    @Environment(\.dismiss) private var dismiss
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Button(action: {
+                dismiss()
                 SettingsWindowManager.shared.show()
             }) {
                 Label("Settings", systemImage: "gearshape")
@@ -28,8 +31,4 @@ struct MenuBarView: View {
         .padding(6)
         .frame(width: 180)
     }
-}
-
-#Preview {
-    MenuBarView()
 }
