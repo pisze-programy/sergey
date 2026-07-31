@@ -9,12 +9,14 @@ public enum HotkeyTrigger {
 
 final class HotkeyManager {
     static let shared = HotkeyManager()
-    private let taskExecutor = TaskExecutor()
     private let panelManager = StatusOverlayPanel.shared
 
     private var isShortcutRecording = false
     private var rightCmdDown = false
     private var rightOptDown = false
+    private var leftCmdDown = false
+    private var leftOptDown = false
+    private var isAgentDictationActive = false
 
     private var actions: [HotkeyTrigger: () -> Void] = [
         .expandPressed: { StatusOverlayPanel.shared.toggleExpansion() },
@@ -61,6 +63,24 @@ final class HotkeyManager {
         }
 
         if event.type == .flagsChanged {
+            if event.keyCode == 55 {
+                leftCmdDown = flags.contains(.command)
+            } else if event.keyCode == 58 {
+                leftOptDown = flags.contains(.option)
+            }
+
+            if leftCmdDown && leftOptDown {
+                if !isAgentDictationActive {
+                    isAgentDictationActive = true
+                    DictationOrchestrator.shared.startAgentDictation()
+                }
+            } else if isAgentDictationActive {
+                isAgentDictationActive = false
+                leftCmdDown = false
+                leftOptDown = false
+                DictationOrchestrator.shared.stopAgentDictation()
+            }
+
             if event.keyCode == 54 {
                 rightCmdDown = flags.contains(.command)
             } else if event.keyCode == 61 {

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsHistoryView: View {
     @ObservedObject var historyStore = HistoryStore.shared
+    @ObservedObject private var router = SettingsRouter.shared
     @State private var selectedAgentID: UUID?
 
     private let dateFormatter: DateFormatter = {
@@ -28,6 +29,16 @@ struct SettingsHistoryView: View {
             listSide
         } right: {
             detailSide
+        }
+        .onAppear { applyRouterSelection() }
+        .onChange(of: router.requestedAgentID) { applyRouterSelection() }
+    }
+
+    /// Deep link support: selects the agent requested from the overlay.
+    private func applyRouterSelection() {
+        if let id = router.requestedAgentID,
+           sortedAgents.contains(where: { $0.id == id }) {
+            selectedAgentID = id
         }
     }
 

@@ -11,16 +11,26 @@ final class AgentStatusService: ObservableObject {
 
     private init() {}
     
-    func addAgent(name: String, workDescription: String, state: AgentModel.StateFlag = .inactive) {
-        let agent = AgentModel(name: name, workDescription: workDescription, state: state)
+    func createAgent(name: String, workDescription: String, state: AgentModel.StateFlag = .inactive, taskId: UUID) -> UUID {
+        var agent = AgentModel(name: name, workDescription: workDescription, state: state)
+        agent.activeTaskId = taskId
         activeAgents.append(agent)
-        HistoryStore.shared.appendLog(AgentLog(statusTitle: state.title, workDescription: workDescription), forAgentNamed: name)
+        HistoryStore.shared.appendLog(makeLog(statusTitle: state.title, workDescription: workDescription), forTaskId: taskId, agentName: name)
+        return agent.id
     }
 
     func removeAgent(id: UUID) {
-        if let found = activeAgents.first(where: { $0.id == id }) {
-            HistoryStore.shared.appendLog(AgentLog(statusTitle: "Removed", workDescription: found.workDescription), forAgentNamed: found.name)
-            activeAgents.removeAll { $0.id == id }
+        activeAgents.removeAll { $0.id == id }
+    }
+
+    /// Updates the agent row without writing to history (used for per-turn streaming text).
+    func updateAgentUI(for id: UUID, workDescription: String) {
+        if let index = activeAgents.firstIndex(where: { $0.id == id }) {
+            var agent = activeAgents[index]
+            agent.workDescription = workDescription
+            var copy = activeAgents
+            copy[index] = agent
+            activeAgents = copy
         }
     }
 
@@ -29,41 +39,24 @@ final class AgentStatusService: ObservableObject {
             var agent = activeAgents[index]
             if let state = state { agent.state = state }
             if let description = workDescription { agent.workDescription = description }
-            activeAgents[index] = agent
+            var copy = activeAgents
+            copy[index] = agent
+            activeAgents = copy
 
             HistoryStore.shared.appendLog(
-                AgentLog(statusTitle: agent.state.title, workDescription: agent.workDescription),
-                forAgentNamed: agent.name
+                makeLog(statusTitle: agent.state.title, workDescription: agent.workDescription),
+                forTaskId: agent.activeTaskId ?? agent.id,
+                agentName: agent.name
             )
         }
     }
-    
-    func assignTask(_ taskId: UUID, toAgent agentId: UUID) {
-        if let index = activeAgents.firstIndex(where: { $0.id == agentId }) {
-            var agent = activeAgents[index]
-            agent.activeTaskId = taskId
-            agent.state = .running
-            activeAgents[index] = agent
-            
-            HistoryStore.shared.appendLog(
-                AgentLog(statusTitle: "Assigned", workDescription: "Task \(taskId.uuidString.prefix(8))"),
-                forAgentNamed: agent.name
-            )
-        }
-    }
-    
-    func releaseTask(fromAgent agentId: UUID) {
-        if let index = activeAgents.firstIndex(where: { $0.id == agentId }) {
-            var agent = activeAgents[index]
-            agent.activeTaskId = nil
-            agent.state = .inactive
-            activeAgents[index] = agent
-            
-            HistoryStore.shared.appendLog(
-                AgentLog(statusTitle: "Released", workDescription: ""),
-                forAgentNamed: agent.name
-            )
-        }
+
+    private func makeLog(statusTitle: String, workDescription: String) -> AgentLog {
+        let maxLength = 300
+        let text = workDescription.count > maxLength
+            ? String(workDescription.prefix(maxLength)) + "…"
+            : workDescription
+        return AgentLog(statusTitle: statusTitle, workDescription: text)
     }
     
     func updateStatusMessage(_ text: String) {

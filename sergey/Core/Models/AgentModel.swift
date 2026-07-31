@@ -9,13 +9,15 @@ public struct AgentModel: Identifiable, Equatable {
     public var activeTaskId: UUID?
     
     public enum StateFlag: Int, CaseIterable, Codable {
-        case running, stopped, inactive
+        case running, stopped, inactive, completed, failed
         
         var color: Color { 
             switch self {
                 case .running: return .green
                 case .stopped: return .orange
                 case .inactive: return .gray.opacity(0.6)
+                case .completed: return .blue
+                case .failed: return .red
             }
         }
 
@@ -24,6 +26,8 @@ public struct AgentModel: Identifiable, Equatable {
                 case .running: return "play.fill"
                 case .stopped: return "stop.fill"
                 case .inactive: return "pause.fill"
+                case .completed: return "checkmark.circle.fill"
+                case .failed: return "xmark.circle.fill"
             }
         }
 
@@ -32,6 +36,8 @@ public struct AgentModel: Identifiable, Equatable {
                 case .running: return "Running"
                 case .stopped: return "Stopped"
                 case .inactive: return "Inactive"
+                case .completed: return "Completed"
+                case .failed: return "Failed"
             }
         }
     }

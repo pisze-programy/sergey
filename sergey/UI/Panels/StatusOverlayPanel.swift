@@ -12,7 +12,6 @@ final class StatusOverlayPanel: ObservableObject {
     static let shared = StatusOverlayPanel()
 
     @Published var isExpanded: Bool = false
-    @Published var userInput: String = ""
     @Published var isRecording: Bool = false
     @Published var currentAudioLevel: Double = 0
 
@@ -51,6 +50,7 @@ final class StatusOverlayPanel: ObservableObject {
         let hostingView = NSHostingView(
             rootView: StatusOverlayFacadeView()
                 .environmentObject(statusService)
+                .environmentObject(TaskQueueManager.shared)
         )
         hostingView.layer?.cornerRadius = Layout.cornerRadius
         hostingView.layer?.masksToBounds = true

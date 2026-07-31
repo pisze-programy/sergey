@@ -1,27 +1,61 @@
 import SwiftUI
 
-struct AgentRowComponent: View {
-    let agent: AgentModel
+struct QueueEntryRow: View {
+    let task: QueuedTask
+
+    private var statusColor: Color {
+        switch task.status {
+        case .running: return .green
+        case .pending, .scheduled: return .gray
+        case .completed: return .blue
+        case .failed: return .red
+        }
+    }
+
+    private var statusTitle: String {
+        switch task.status {
+        case .pending: return "Queued"
+        case .scheduled: return "Scheduled"
+        case .running: return "Running"
+        case .completed: return "Completed"
+        case .failed: return "Failed"
+        }
+    }
+
+    private var subtitle: String {
+        switch task.status {
+        case .running:
+            return task.prompt
+        case .pending:
+            return "Queued · priority \(task.priority)"
+        case .scheduled:
+            return "Scheduled"
+        case .completed:
+            return "Completed"
+        case .failed:
+            return task.failureReason ?? "Failed"
+        }
+    }
 
     var body: some View {
         HStack(spacing: 12) {
             ZStack {
                 Circle()
-                    .fill(agent.state.color)
-                    .frame(width: agent.state == .running ? 16 : 10, height: agent.state == .running ? 16 : 10)
+                    .fill(statusColor)
+                    .frame(width: task.status == .running ? 16 : 10, height: task.status == .running ? 16 : 10)
                     .opacity(0.3)
 
                 Circle()
-                    .fill(agent.state.color)
+                    .fill(statusColor)
                     .frame(width: 9, height: 9)
             }
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(agent.name)
+                Text(task.title)
                     .font(.system(size: 14, weight: .semibold))
                     .lineLimit(1)
 
-                Text(agent.workDescription)
+                Text(subtitle)
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
                     .lineLimit(2)
@@ -29,7 +63,7 @@ struct AgentRowComponent: View {
 
             Spacer()
 
-            Text(agent.state.title)
+            Text(statusTitle)
                 .font(.system(size: 11))
                 .foregroundStyle(Color(white: 0.8).opacity(0.65))
         }
@@ -37,27 +71,6 @@ struct AgentRowComponent: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.white.opacity(0.07))
         .cornerRadius(11)
-    }
-}
-
-struct AgentListView: View {
-    let agents: [AgentModel]
-    let onTap: (AgentModel) -> Void
-
-    var body: some View {
-        ScrollView {
-            LazyVStack(spacing: 10) {
-                ForEach(agents) { agent in
-                    Button {
-                        onTap(agent)
-                    } label: {
-                        AgentRowComponent(agent: agent)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal, 2)
-        }
     }
 }
 
@@ -72,15 +85,11 @@ struct EmptyStateAgentView: View {
     }
 }
 
-private enum InputFieldFocus: Hashable {
-    case input
-}
-
 struct StatusOverlayFacadeView: View {
     @EnvironmentObject var statusService: AgentStatusService
     @ObservedObject private var panelManager = StatusOverlayPanel.shared
+    @EnvironmentObject private var queueManager: TaskQueueManager
     @State private var selectedAgentId: UUID?
-    @FocusState private var focusedField: InputFieldFocus?
     @ObservedObject private var settings = SettingsStore.shared
     @ObservedObject private var orchestrator = DictationOrchestrator.shared
     @ObservedObject private var healthService = OllamaHealthService.shared
@@ -125,8 +134,6 @@ struct StatusOverlayFacadeView: View {
         orchestrator.dictationStatus != .idle
     }
 
-    private var placeholderText: String { "Command..." }
-
     var body: some View {
         rootContent()
             .frame(
@@ -143,9 +150,6 @@ struct StatusOverlayFacadeView: View {
                     .shadow(color: Color.black.opacity(0.12), radius: 10, x: 0, y: 5)
             )
             .opacity(settings.isFocusModeEnabled ? 0.5 : 1.0)
-            .onChange(of: panelManager.isExpanded) { expanded in
-                if expanded { focusedField = .input }
-            }
     }
 
     @ViewBuilder
@@ -169,7 +173,6 @@ struct StatusOverlayFacadeView: View {
 
             if panelManager.isExpanded {
                 expandedContent()
-                    .padding(15)
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
@@ -200,32 +203,8 @@ struct StatusOverlayFacadeView: View {
 
     @ViewBuilder
     private func expandedContent() -> some View {
-        VStack(spacing: 15) {
-            inputField()
-
-            Divider()
-                .padding(.vertical, 5)
-                .opacity(0.3)
-
-            agentContent
-        }
-    }
-
-    @ViewBuilder
-    private func inputField() -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: "terminal")
-                .font(.system(size: 16))
-                .foregroundColor(.secondary)
-
-            TextField(placeholderText, text: $panelManager.userInput, onCommit: {})
-                .textFieldStyle(.plain)
-                .focused($focusedField, equals: .input)
-                .font(.system(size: 14))
-        }
-        .padding(12)
-        .background(Color.white.opacity(0.08))
-        .cornerRadius(12)
+        agentContent
+            .padding(15)
     }
 
     @ViewBuilder
@@ -235,13 +214,44 @@ struct StatusOverlayFacadeView: View {
                 self.selectedAgentId = nil
             })
             .environmentObject(statusService)
-        } else if statusService.activeAgents.isEmpty {
+        } else if queueManager.tasks.isEmpty {
             EmptyStateAgentView()
         } else {
-            AgentListView(agents: statusService.activeAgents) { agent in
-                focusedField = nil
-                selectedAgentId = agent.id
+            queueListView
+        }
+    }
+
+    private var queueEntries: [QueuedTask] {
+        let running = queueManager.tasks.filter { $0.status == .running }
+        let queued = queueManager.tasks
+            .filter { $0.status == .pending || $0.status == .scheduled }
+            .sorted { task1, task2 in
+                if task1.priority != task2.priority { return task1.priority > task2.priority }
+                return task1.createdAt < task2.createdAt
             }
+        let finished = queueManager.tasks
+            .filter { $0.status == .completed || $0.status == .failed }
+            .sorted { $0.createdAt > $1.createdAt }
+        return Array((running + queued + finished).prefix(50))
+    }
+
+    private var queueListView: some View {
+        ScrollView {
+            LazyVStack(spacing: 10) {
+                ForEach(queueEntries) { task in
+                    Button {
+                        guard let agentId = task.assignedToAgentId,
+                              statusService.activeAgents.contains(where: { $0.id == agentId }) else {
+                            return
+                        }
+                        selectedAgentId = agentId
+                    } label: {
+                        QueueEntryRow(task: task)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 2)
         }
     }
 

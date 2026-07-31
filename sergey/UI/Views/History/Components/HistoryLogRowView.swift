@@ -30,9 +30,16 @@ struct HistoryLogRowView: View {
 
             Text(log.workDescription)
                 .font(.body)
-                .lineLimit(3)
+                .lineLimit(6)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
+                .contentShape(Rectangle())
+                .contextMenu {
+                    Button("Copy") {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(log.workDescription, forType: .string)
+                    }
+                }
         }
         .padding(10)
         .background(Color(nsColor: NSColor.controlBackgroundColor.withSystemEffect(.pressed)))

@@ -3,7 +3,6 @@ import Foundation
 import SwiftUI
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    let taskExecutor = TaskExecutor()
     private var taskDispatcher: TaskDispatcher?
     private var onboardingWindow: NSWindow?
 
@@ -39,10 +38,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         showOnboardingIfNeeded()
     }
 
-    func applicationWillTerminate(_ notification: Notification) {
+    @MainActor func applicationWillTerminate(_ notification: Notification) {
         DictationOrchestrator.shared.forceCleanup()
         StatusOverlayPanel.shared.hide()
-        self.taskExecutor.resetProcessing()
         taskDispatcher?.stop()
     }
 

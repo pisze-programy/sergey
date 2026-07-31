@@ -56,7 +56,7 @@ struct AgentEditorView: View {
                         .foregroundColor(.secondary)
                     Spacer()
                     Button("Retry") {
-                        withAnimation { store.reloadModels() }
+                        withAnimation { store.refreshModels() }
                     }
                     .font(.caption)
                 }

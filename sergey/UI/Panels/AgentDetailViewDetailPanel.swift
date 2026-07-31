@@ -67,14 +67,33 @@ struct AgentDetailViewDetailPanel: View {
                             Text("Current Task")
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
-                                
+
                             Text(a.workDescription)
-                                .font(.body)
-                                .lineLimit(4)
+                                .font(.system(size: 13))
+                                .foregroundColor(.primary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .contentShape(Rectangle())
+                                .contextMenu {
+                                    Button("Copy") {
+                                        NSPasteboard.general.clearContents()
+                                        NSPasteboard.general.setString(a.workDescription, forType: .string)
+                                    }
+                                }
+                                .onTapGesture {
+                                    SettingsRouter.shared.openHistory(for: a.id)
+                                }
+
+                            HStack(spacing: 10) {
+                                Label("Open full history", systemImage: "arrow.up.right.square")
+                                Spacer()
+                                Label("Right-click: copy", systemImage: "doc.on.doc")
+                            }
+                            .font(.caption2)
+                            .foregroundColor(.secondary.opacity(0.7))
                         }
                         .padding(12)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.white.opacity(0.06))
+                        .background(Color.white.opacity(0.08))
                         .cornerRadius(10)
 
                         VStack(spacing: 10) {

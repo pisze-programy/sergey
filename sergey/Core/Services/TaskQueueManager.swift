@@ -29,15 +29,13 @@ final class TaskQueueManager: ObservableObject {
     
     
     func enqueue(_ task: QueuedTask) {
-        tasks.append(task)
-        save()
+        mutateTasks { $0.append(task) }
     }
     
     func schedule(_ task: QueuedTask, at date: Date) {
         var scheduledTask = task
         scheduledTask.status = .scheduled
-        tasks.append(scheduledTask)
-        save()
+        mutateTasks { $0.append(scheduledTask) }
     }
     
     
@@ -57,69 +55,71 @@ final class TaskQueueManager: ObservableObject {
     
     func markRunning(_ taskId: UUID, assignedToAgent agentId: UUID? = nil) -> QueuedTask? {
         guard let index = tasks.firstIndex(where: { $0.id == taskId && ($0.status == .pending || $0.status == .scheduled) }) else { return nil }
-        
-        var task = tasks[index]
-        task.status = .running
-        if let agentId = agentId {
-            task.assignedToAgentId = agentId
+        var result: QueuedTask?
+        mutateTasks { list in
+            var task = list[index]
+            task.status = .running
+            if let agentId { task.assignedToAgentId = agentId }
+            list[index] = task
+            result = task
         }
-        tasks[index] = task
-        
-        save()
-        return task
+        return result
+    }
+    
+    func assignAgent(_ taskId: UUID, to agentId: UUID) {
+        guard let index = tasks.firstIndex(where: { $0.id == taskId }) else { return }
+        mutateTasks { list in
+            list[index].assignedToAgentId = agentId
+        }
     }
     
     func markCompleted(_ taskId: UUID) {
         guard let index = tasks.firstIndex(where: { $0.id == taskId }) else { return }
-        
-        var task = tasks[index]
-        task.status = .completed
-        tasks[index] = task
-        
-        save()
+        mutateTasks { list in
+            list[index].status = .completed
+        }
     }
     
     func markFailed(_ taskId: UUID, reason: String) -> QueuedTask? {
         guard let index = tasks.firstIndex(where: { $0.id == taskId }) else { return nil }
         
-        var task = tasks[index]
-        task.failureReason = reason
-        
-        if task.canRetry() {
-            task.retryCount += 1
-            task.status = .pending
-            tasks[index] = task
-            save()
-            return task
-        } else {
-            task.status = .failed
-            tasks[index] = task
-            save()
-            return nil
+        var result: QueuedTask?
+        mutateTasks { list in
+            var task = list[index]
+            task.failureReason = reason
+            
+            if task.canRetry() {
+                task.retryCount += 1
+                task.status = .pending
+                list[index] = task
+                result = task
+            } else {
+                task.status = .failed
+                list[index] = task
+            }
         }
+        return result
     }
     
     func retryTask(_ taskId: UUID) -> Bool {
         guard let index = tasks.firstIndex(where: { $0.id == taskId && ($0.status == .failed || $0.status == .pending) }) else { return false }
-        
-        var task = tasks[index]
-        task.status = .pending
-        task.failureReason = nil
-        tasks[index] = task
-        save()
+        mutateTasks { list in
+            list[index].status = .pending
+            list[index].failureReason = nil
+        }
         return true
     }
     
     
     func purgeCompleted(days: Int = 7) {
         let cutoff = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
-        tasks.removeAll { $0.status == .completed && $0.createdAt < cutoff }
-        save()
+        mutateTasks { list in
+            list.removeAll { $0.status == .completed && $0.createdAt < cutoff }
+        }
     }
     
     func clearAll() {
-        tasks.removeAll()
-        save()
+        mutateTasks { $0.removeAll() }
     }
     
     
@@ -137,8 +137,25 @@ final class TaskQueueManager: ObservableObject {
     private func load() {
         if let data = try? Data(contentsOf: queueURL),
            let decoded = try? JSONDecoder().decode([QueuedTask].self, from: data) {
-            self.tasks = decoded.sorted { $0.createdAt > $1.createdAt }
+            // Tasks persisted with status .running (e.g. the app was quit mid-task)
+            // would be restored as .running, count against the concurrency limit,
+            // and never be re-dispatched (dequeueNextReadyTask only returns
+            // .pending/.scheduled). Normalize them to .pending so they re-run.
+            self.tasks = decoded.map { task in
+                var task = task
+                if task.status == .running { task.status = .pending }
+                return task
+            }.sorted { $0.createdAt > $1.createdAt }
         }
+    }
+    
+    /// Mutates `tasks` through a full-array reassignment so `@Published`
+    /// always fires, then persists the result.
+    private func mutateTasks(_ transform: (inout [QueuedTask]) -> Void) {
+        var copy = tasks
+        transform(&copy)
+        tasks = copy
+        save()
     }
     
     private func save() {

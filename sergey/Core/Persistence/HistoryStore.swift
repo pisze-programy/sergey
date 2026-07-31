@@ -23,20 +23,18 @@ class HistoryStore: ObservableObject {
         }
     }
 
-    func appendLog(_ log: AgentLog, forAgentNamed agentName: String) {
+    func appendLog(_ log: AgentLog, forTaskId taskId: UUID, agentName: String) {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             var data = self.data
-
-            if let matchedIndex = data.agents.firstIndex(where: { $0.name == agentName }) {
+            if let matchedIndex = data.agents.firstIndex(where: { $0.taskId == taskId }) {
                 var matchedAgent = data.agents[matchedIndex]
                 matchedAgent.logs.insert(log, at: 0)
                 data.agents[matchedIndex] = matchedAgent
             } else {
-                let newAgent = HistoryRecordAgent(name: agentName, logs: [log])
+                let newAgent = HistoryRecordAgent(name: agentName, taskId: taskId, logs: [log])
                 data.agents.append(newAgent)
             }
-
             self.data = data
             self.save()
         }

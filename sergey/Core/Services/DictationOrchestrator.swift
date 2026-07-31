@@ -7,6 +7,11 @@ import OSLog
 final class DictationOrchestrator: ObservableObject {
     static let shared = DictationOrchestrator()
 
+    enum DictationMode {
+        case transcribe
+        case agent
+    }
+
     @Published var dictationStatus: DictationStatus = .idle
     @Published var currentAudioLevel: Double = 0
     @Published var targetAppIcon: NSImage?
@@ -36,6 +41,7 @@ final class DictationOrchestrator: ObservableObject {
     private let livePreviewInterval: UInt64 = 1_500_000_000
     /// Captured before the overlay appears, used for AX text insertion.
     private var targetAppProcessID: pid_t?
+    private var activeMode: DictationMode = .transcribe
 
     private init() {
         audioRecorder.$audioLevel
@@ -71,6 +77,7 @@ final class DictationOrchestrator: ObservableObject {
     }
 
     func startRecording() {
+        activeMode = .transcribe
         switch dictationStatus {
         case .idle, .error_: startDictation()
         case .done: resetToIdle(); startDictation()
@@ -80,6 +87,20 @@ final class DictationOrchestrator: ObservableObject {
 
     func stopAndTranscribe() {
         guard dictationStatus == .listening else { return }
+        executeStopAndTranscribe()
+    }
+
+    func startAgentDictation() {
+        guard settings.sttEnabled else { setError("STT disabled in settings"); return }
+        guard !isBusy else { return }
+        activeMode = .agent
+        // Expand the overlay so the user sees the live preview + queue status.
+        StatusOverlayPanel.shared.showExpansion()
+        startDictation()
+    }
+
+    func stopAgentDictation() {
+        guard dictationStatus == .listening, activeMode == .agent else { return }
         executeStopAndTranscribe()
     }
 
@@ -120,12 +141,14 @@ final class DictationOrchestrator: ObservableObject {
         guard currentTaskID == nil else { return }
 
         // Capture target app BEFORE overlay appears and becomes frontmost.
-        let frontApp = NSWorkspace.shared.frontmostApplication
-        targetAppProcessID = frontApp?.processIdentifier
-        targetAppIcon = frontApp?.icon
-        targetAppName = frontApp?.localizedName
+        // Only transcribe mode targets an app; agent mode never does.
+        if activeMode == .transcribe {
+            let frontApp = NSWorkspace.shared.frontmostApplication
+            targetAppProcessID = frontApp?.processIdentifier
+            targetAppIcon = frontApp?.icon
+            targetAppName = frontApp?.localizedName
+        }
 
-        panel.userInput = ""
         livePreviewText = ""
         dictationStatus = .listening
 
@@ -189,7 +212,6 @@ final class DictationOrchestrator: ObservableObject {
                         guard self.currentTaskID == taskID else { return }
                         self.currentTaskID = nil
                         self.dictationStatus = .idle
-                        self.panel.userInput = ""
                     }
                     return
                 }
@@ -208,7 +230,6 @@ final class DictationOrchestrator: ObservableObject {
                         guard self.currentTaskID == taskID else { return }
                         self.currentTaskID = nil
                         self.dictationStatus = .idle
-                        self.panel.userInput = ""
                     }
                     return
                 }
@@ -218,29 +239,37 @@ final class DictationOrchestrator: ObservableObject {
                 await MainActor.run { [trimmed, languageCode, duration] in
                     guard self.currentTaskID == taskID else { return }
                     self.currentTaskID = nil
-                    if self.panel.userInput.isEmpty {
-                        self.panel.userInput = trimmed
-                    } else {
-                        self.panel.userInput += " " + trimmed
-                    }
                     self.dictationStatus = .done
 
-                    let inserted = TextInsertionService.insertText(trimmed, targetAppPID: self.targetAppProcessID)
-                    self.targetAppProcessID = nil
-                    if self.settings.sttSaveRecords {
-                        let record = STTRecord(
-                            text: trimmed,
-                            languageCode: languageCode,
-                            duration: duration,
-                            inserted: inserted
-                        )
-                        STTRecordStore.shared.append(record)
+                    switch self.activeMode {
+                    case .transcribe:
+                        let inserted = TextInsertionService.insertText(trimmed, targetAppPID: self.targetAppProcessID)
+                        self.targetAppProcessID = nil
+                        if self.settings.sttSaveRecords {
+                            let record = STTRecord(
+                                text: trimmed,
+                                languageCode: languageCode,
+                                duration: duration,
+                                inserted: inserted
+                            )
+                            STTRecordStore.shared.append(record)
+                        }
+                    case .agent:
+                        TaskExecutor.shared.executeRequest(trimmed)
+                        if self.settings.sttSaveRecords {
+                            let record = STTRecord(
+                                text: trimmed,
+                                languageCode: languageCode,
+                                duration: duration,
+                                inserted: false
+                            )
+                            STTRecordStore.shared.append(record)
+                        }
                     }
 
                     Task { @MainActor in
                         try? await Task.sleep(nanoseconds: 1_500_000_000)
                         if self.dictationStatus == .done {
-                            self.panel.userInput = ""
                             self.resetToIdle()
                         }
                     }
@@ -260,6 +289,7 @@ final class DictationOrchestrator: ObservableObject {
     }
 
     private func resetToIdle() {
+        activeMode = .transcribe
         currentTaskID = nil
         targetAppProcessID = nil
         targetAppIcon = nil

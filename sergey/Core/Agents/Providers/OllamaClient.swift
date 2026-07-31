@@ -1,6 +1,5 @@
 import Foundation
 import Combine
-import SwiftUI
 
 enum OllamaError: Error, LocalizedError {
     case invalidConfiguration(String)
@@ -24,9 +23,17 @@ final class OllamaClient {
     }
 
     func generateResponse(systemPrompt: String, prompt: String) -> AsyncThrowingStream<String, Error> {
+        // Resolve config on the caller's context before the detached task, so the
+        // stream producer never touches actor-isolated state (Swift 6-safe).
+        let resolvedBaseURL = baseURL
+        let resolvedModelName = modelName
+
         return AsyncThrowingStream { continuation in
-            Task {
-                guard let url = baseURL else {
+            // Detached so the URLSession bytes + JSON parsing loop does not inherit
+            // the caller's MainActor executor (up to 4 concurrent streams would
+            // otherwise parse on the main thread).
+            let task = Task.detached {
+                guard let url = resolvedBaseURL else {
                     continuation.finish(throwing: OllamaError.invalidConfiguration("Invalid URL in Settings"))
                     return
                 }
@@ -37,9 +44,9 @@ final class OllamaClient {
                 ]
 
                 let body: [String: Any] = [
-                    "model": modelName,
+                    "model": resolvedModelName,
                     "messages": messages,
-                    "stream": false
+                    "stream": true
                 ]
 
                 var request = URLRequest(url: url.appendingPathComponent("v1/chat/completions"))
@@ -48,29 +55,90 @@ final class OllamaClient {
                 request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
                 do {
-                    let (data, response) = try await URLSession.shared.data(for: request)
+                    let (bytes, response) = try await URLSession.shared.bytes(for: request)
                     guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
                         let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
-                        let errorBody = String(data: data, encoding: .utf8)
                         continuation.finish(throwing: NSError(domain: "OllamaClient", code: 0, userInfo: [NSLocalizedDescriptionKey: "HTTP error \(statusCode)"]))
                         return
                     }
 
-                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let choices = json["choices"] as? [[String: Any]],
-                       let message = choices.first?["message"] as? [String: Any],
-                       let content = message["content"] as? String {
-                        continuation.yield(content)
-                    } else {
-                        continuation.finish(throwing: NSError(domain: "OllamaClient", code: 1, userInfo: [NSLocalizedDescriptionKey: "JSON mismatch"]))
-                        return
+                    // Stream the NDJSON lines from the OpenAI-compatible endpoint,
+                    // tolerating SSE framing ("data:"-prefixed lines, "[DONE]" terminator).
+                    for try await line in bytes.lines {
+                        var payload = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !payload.isEmpty else { continue }
+
+                        // SSE framing: strip a leading "data:" prefix if present.
+                        if payload.hasPrefix("data:") {
+                            payload = String(payload.dropFirst("data:".count))
+                                .trimmingCharacters(in: .whitespacesAndNewlines)
+                        }
+
+                        // SSE end-of-stream marker.
+                        if payload == "[DONE]" {
+                            break
+                        }
+
+                        guard let data = payload.data(using: .utf8),
+                              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                              let choices = json["choices"] as? [[String: Any]],
+                              let delta = choices.first?["delta"] as? [String: Any] else {
+                            continue
+                        }
+
+                        if let content = delta["content"] as? String, !content.isEmpty {
+                            continuation.yield(content)
+                        }
+
+                        if let finishReason = choices.first?["finish_reason"] as? String,
+                           !finishReason.isEmpty, finishReason != "null" {
+                            break
+                        }
                     }
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
                 }
             }
+
+            continuation.onTermination = { _ in
+                task.cancel()
+            }
         }
+    }
+
+    /// Sends an image to a vision-capable model and returns its description.
+    func describeImage(base64: String, model: String, prompt: String) async throws -> String {
+        guard let url = baseURL else {
+            throw OllamaError.invalidConfiguration("Invalid URL in Settings")
+        }
+        let body: [String: Any] = [
+            "model": model,
+            "messages": [
+                [
+                    "role": "user",
+                    "content": prompt,
+                    "images": [base64]
+                ]
+            ],
+            "stream": false
+        ]
+        var request = URLRequest(url: url.appendingPathComponent("api/chat"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 120
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+            throw NSError(domain: "OllamaClient", code: 0, userInfo: [NSLocalizedDescriptionKey: "Vision HTTP error \((response as? HTTPURLResponse)?.statusCode ?? 0)"])
+        }
+        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let message = json["message"] as? [String: Any],
+           let content = message["content"] as? String {
+            return content
+        }
+        throw NSError(domain: "OllamaClient", code: 1, userInfo: [NSLocalizedDescriptionKey: "Vision response JSON mismatch"])
     }
 
     func isAvailable() async -> Bool {

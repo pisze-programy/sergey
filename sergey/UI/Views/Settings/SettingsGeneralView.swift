@@ -4,6 +4,7 @@ struct SettingsGeneralView: View {
     @ObservedObject var store = SettingsStore.shared
     @StateObject private var permissionManager = PermissionManager.shared
     @ObservedObject private var healthService = OllamaHealthService.shared
+    @ObservedObject private var agentStore = AgentDefinitionStore.shared
 
     var body: some View {
         SettingsPane("General") {
@@ -16,7 +17,27 @@ struct SettingsGeneralView: View {
                         OllamaHealthRow(healthService: healthService)
                         SettingsDivider()
                         SettingsTextFieldRow("Server URL", placeholder: "http://localhost:11434", text: $store.ollamaURL)
-                        SettingsTextFieldRow("Default Model", subtitle: "The specific model to use for processing.", placeholder: "gemma4:26mu-a4b-it-q4_K_M", text: $store.modelName)
+                        SettingsDivider()
+                        SettingsModelPickerRow(
+                            "Default Model",
+                            subtitle: "The specific model to use for processing. Models are fetched from the Ollama server; press refresh after pulling a new one.",
+                            selection: $store.modelName,
+                            models: agentStore.availableModels,
+                            isLoading: agentStore.isLoadingModels,
+                            error: agentStore.modelsError,
+                            onRefresh: { agentStore.refreshModels() }
+                        )
+                        SettingsDivider()
+                        SettingsModelPickerRow(
+                            "Vision model (optional)",
+                            subtitle: "Used to describe screen captures; pick \"Not set\" to disable.",
+                            allowEmpty: true,
+                            selection: $store.visionModelName,
+                            models: agentStore.availableModels,
+                            isLoading: agentStore.isLoadingModels,
+                            error: agentStore.modelsError,
+                            onRefresh: { agentStore.refreshModels() }
+                        )
                     }
 
                     SettingsSectionContainer("Speech-to-Text", subtitle: "Offline voice dictation using Parakeet TDT v3.") {
@@ -27,7 +48,6 @@ struct SettingsGeneralView: View {
                             Text("English").tag("en")
                             Text("Polski").tag("pl")
                         }
-                        SettingsToggleRow("Auto-send to LLM on Transcribe Finish", isOn: $store.sttAutoSubmit, disabled: !store.sttEnabled)
                         SettingsToggleRow("Save Records", subtitle: "Keep a history of all dictations.", isOn: $store.sttSaveRecords, disabled: !store.sttEnabled)
                     }
 
@@ -40,11 +60,16 @@ struct SettingsGeneralView: View {
         }
         .onAppear {
             permissionManager.refresh()
+            agentStore.refreshModels()
+        }
+        .onChange(of: store.ollamaURL) {
+            agentStore.refreshModels()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             Task { @MainActor in
-                await healthService.performHealthCheck()
+                _ = await healthService.performHealthCheck()
             }
+            agentStore.refreshModels()
         }
     }
 }
@@ -97,7 +122,7 @@ private struct OllamaHealthRow: View {
         guard !isChecking else { return }
         isChecking = true
         Task { @MainActor in
-            await healthService.performHealthCheck()
+            _ = await healthService.performHealthCheck()
             isChecking = false
         }
     }

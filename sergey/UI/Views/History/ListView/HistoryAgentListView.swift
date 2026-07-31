@@ -25,7 +25,7 @@ struct HistoryAgentListView: View {
         HStack(spacing: 8) {
             Image(systemName: "clock.arrow.circlepath")
                 .foregroundColor(.blue)
-            Text("Agent History")
+            Text("Task History")
                 .font(.headline)
 
             Spacer()
@@ -89,7 +89,7 @@ struct HistoryAgentListView: View {
             Image(systemName: "list.bullet.rectangle.portrait")
                 .font(.system(size: 36))
                 .foregroundColor(.secondary.opacity(0.4))
-            Text("No agents yet")
+            Text("No tasks yet")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
             Spacer()

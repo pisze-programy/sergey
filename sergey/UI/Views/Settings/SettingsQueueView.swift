@@ -91,7 +91,7 @@ struct SettingsQueueView: View {
     private var footer: some View {
         HStack {
             Button("Retry Selected") {
-                selectedTasks.forEach { queueManager.retryTask($0) }
+                selectedTasks.forEach { _ = queueManager.retryTask($0) }
                 selectedTasks.removeAll()
             }
             .disabled(selectedTasks.isEmpty || queueManager.tasks.filter({ $0.status == .failed }).isEmpty)
@@ -132,6 +132,7 @@ struct SettingsQueueView: View {
             prompt: newTaskPrompt.isEmpty ? "Complete task: \(newTaskTitle)" : newTaskPrompt
         )
         queueManager.enqueue(task)
+        TaskDispatcher.shared.notifyEnqueued()
         newTaskTitle = ""
         newTaskPrompt = ""
     }

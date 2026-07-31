@@ -17,12 +17,14 @@ public struct AgentLog: Codable, Identifiable {
 public struct HistoryRecordAgent: Codable, Identifiable {
     public let id: UUID
     public var name: String
+    public let taskId: UUID?
     public var firstLaunchDate: Date
     public var logs: [AgentLog]
 
-    public init(id: UUID = UUID(), name: String, firstLaunchDate: Date = Date(), logs: [AgentLog] = []) {
+    public init(id: UUID = UUID(), name: String, taskId: UUID? = nil, firstLaunchDate: Date = Date(), logs: [AgentLog] = []) {
         self.id = id
         self.name = name
+        self.taskId = taskId
         self.firstLaunchDate = firstLaunchDate
         self.logs = logs
     }

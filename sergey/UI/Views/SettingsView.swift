@@ -32,6 +32,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
 
 struct SettingsView: View {
     @State private var selectedSection: SettingsSection = .general
+    @ObservedObject private var router = SettingsRouter.shared
 
     var body: some View {
         HStack(spacing: 0) {
@@ -44,6 +45,16 @@ struct SettingsView: View {
 
             contentArea
                 .frame(minWidth: 500, maxWidth: .infinity)
+        }
+        .onAppear { applyRouterRequest() }
+        .onChange(of: router.requestedSection) { applyRouterRequest() }
+    }
+
+    /// Deep link support: the overlay can ask Settings to open a specific
+    /// section (e.g. History) when the user clicks a task detail.
+    private func applyRouterRequest() {
+        if let section = router.requestedSection {
+            selectedSection = section
         }
     }
 

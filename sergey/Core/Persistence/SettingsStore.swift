@@ -22,13 +22,13 @@ class SettingsStore: ObservableObject {
     @Published var sttLanguageCode: String = "en" {
         didSet { save() }
     }
-    @Published var sttAutoSubmit: Bool = false {
-        didSet { save() }
-    }
     @Published var sttSaveRecords: Bool = true {
         didSet { save() }
     }
     @Published var onboardingShown: Bool = false {
+        didSet { save() }
+    }
+    @Published var visionModelName: String = "" {
         didSet { save() }
     }
     private init() {
@@ -46,18 +46,18 @@ class SettingsStore: ObservableObject {
             self.isFocusModeEnabled = decoded.isFocusModeEnabled
             self.sttEnabled = decoded.sttEnabled ?? true
             self.sttLanguageCode = decoded.sttLanguageCode ?? "en"
-            self.sttAutoSubmit = decoded.sttAutoSubmit ?? false
             self.sttSaveRecords = decoded.sttSaveRecords ?? true
             self.onboardingShown = decoded.onboardingShown ?? false
+            self.visionModelName = decoded.visionModelName ?? ""
         } else {
             self.ollamaURL = defaultURL
             self.modelName = defaultModel
             self.isFocusModeEnabled = false
             self.sttEnabled = true
             self.sttLanguageCode = "en"
-            self.sttAutoSubmit = false
             self.sttSaveRecords = true
             self.onboardingShown = false
+            self.visionModelName = ""
         }
     }
 
@@ -68,9 +68,9 @@ class SettingsStore: ObservableObject {
             isFocusModeEnabled: isFocusModeEnabled,
             sttEnabled: sttEnabled,
             sttLanguageCode: sttLanguageCode,
-            sttAutoSubmit: sttAutoSubmit,
             sttSaveRecords: sttSaveRecords,
-            onboardingShown: onboardingShown
+            onboardingShown: onboardingShown,
+            visionModelName: visionModelName
         )
         if let encoded = try? JSONEncoder().encode(data) {
             try? encoded.write(to: configURL)
@@ -84,7 +84,7 @@ struct SettingsData: Codable {
     let isFocusModeEnabled: Bool
     let sttEnabled: Bool?
     let sttLanguageCode: String?
-    let sttAutoSubmit: Bool?
     let sttSaveRecords: Bool?
     let onboardingShown: Bool?
+    let visionModelName: String?
 }

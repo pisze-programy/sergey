@@ -39,7 +39,7 @@ struct SettingsAgentsView: View {
                     store.add(new)
                     selectedAgentID = new.id
                     editingCopy = new
-                    store.reloadModels()
+                    store.refreshModels()
                 } label: {
                     Image(systemName: "plus")
                         .foregroundColor(.accentColor)
