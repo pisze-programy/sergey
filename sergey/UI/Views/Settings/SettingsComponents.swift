@@ -117,35 +117,26 @@ struct SettingsTextFieldRow: View {
 }
 
 
-/// Model selector populated from the Ollama server, with a manual refresh
-/// button and inline loading/error states. The current selection is always
-/// included as an option even when it isn't in the fetched list.
+/// Model selector populated from the Ollama server. The current selection is
+/// always included as an option even when it isn't in the fetched list.
+/// Sync/error/loading states live in the Ollama connection row (single place).
 struct SettingsModelPickerRow: View {
     let title: String
     let subtitle: String?
     let allowEmpty: Bool
     @Binding var selection: String
     let models: [String]
-    let isLoading: Bool
-    let error: String?
-    let onRefresh: () -> Void
 
     init(_ title: String,
          subtitle: String? = nil,
          allowEmpty: Bool = false,
          selection: Binding<String>,
-         models: [String],
-         isLoading: Bool,
-         error: String?,
-         onRefresh: @escaping () -> Void) {
+         models: [String]) {
         self.title = title
         self.subtitle = subtitle
         self.allowEmpty = allowEmpty
         self._selection = selection
         self.models = models
-        self.isLoading = isLoading
-        self.error = error
-        self.onRefresh = onRefresh
     }
 
     private var options: [String] {
@@ -173,43 +164,14 @@ struct SettingsModelPickerRow: View {
                 }
             }
 
-            HStack(spacing: 8) {
-                Picker("", selection: $selection) {
-                    ForEach(options, id: \.self) { name in
-                        Text(displayName(name)).tag(name)
-                    }
+            Picker("", selection: $selection) {
+                ForEach(options, id: \.self) { name in
+                    Text(displayName(name)).tag(name)
                 }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                Button(action: onRefresh) {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 12, weight: .semibold))
-                }
-                .buttonStyle(.plain)
-                .foregroundColor(.secondary)
-                .disabled(isLoading)
-                .help("Refresh models from Ollama")
             }
-
-            if isLoading {
-                HStack(spacing: 6) {
-                    ProgressView()
-                        .controlSize(.small)
-                    Text("Fetching models…")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            } else if let error = error {
-                Label(error, systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption)
-                    .foregroundColor(.red)
-            } else if models.isEmpty {
-                Text("No models found — check the Ollama URL and refresh.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.vertical, 4)
     }

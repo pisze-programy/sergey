@@ -8,7 +8,11 @@ final class TaskDispatcher {
     private let healthService = OllamaHealthService.shared
     
     private var dispatchTimer: Timer?
-    private let concurrentLimit = 4
+    // Serial execution: agents share system resources (browser windows, screen,
+    // keyboard focus). Running two agents concurrently would let them open
+    // browsers / capture screens / type over each other. The queue guarantees
+    // one agent runs at a time, in priority order.
+    private let concurrentLimit = 1
     private let dispatchInterval: TimeInterval = 2
     private var lastCycleWasOffline = false
     
@@ -63,7 +67,7 @@ final class TaskDispatcher {
         
         // Mark the task running before handing it off so dequeueNextReadyTask()
         // can never return the same task twice.
-        queueManager.markRunning(nextTask.id)
+        _ = queueManager.markRunning(nextTask.id)
         agentExecutor.execute(task: nextTask)
     }
     

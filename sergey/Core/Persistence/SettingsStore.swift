@@ -31,6 +31,9 @@ class SettingsStore: ObservableObject {
     @Published var visionModelName: String = "" {
         didSet { save() }
     }
+    @Published var allowTextInsertion: Bool = false {
+        didSet { save() }
+    }
     private init() {
         let home = FileManager.default.homeDirectoryForCurrentUser
         let configPath = home.appendingPathComponent(".sergey_config.json")
@@ -49,6 +52,7 @@ class SettingsStore: ObservableObject {
             self.sttSaveRecords = decoded.sttSaveRecords ?? true
             self.onboardingShown = decoded.onboardingShown ?? false
             self.visionModelName = decoded.visionModelName ?? ""
+            self.allowTextInsertion = decoded.allowTextInsertion ?? false
         } else {
             self.ollamaURL = defaultURL
             self.modelName = defaultModel
@@ -58,6 +62,7 @@ class SettingsStore: ObservableObject {
             self.sttSaveRecords = true
             self.onboardingShown = false
             self.visionModelName = ""
+            self.allowTextInsertion = false
         }
     }
 
@@ -70,7 +75,8 @@ class SettingsStore: ObservableObject {
             sttLanguageCode: sttLanguageCode,
             sttSaveRecords: sttSaveRecords,
             onboardingShown: onboardingShown,
-            visionModelName: visionModelName
+            visionModelName: visionModelName,
+            allowTextInsertion: allowTextInsertion
         )
         if let encoded = try? JSONEncoder().encode(data) {
             try? encoded.write(to: configURL)
@@ -87,4 +93,5 @@ struct SettingsData: Codable {
     let sttSaveRecords: Bool?
     let onboardingShown: Bool?
     let visionModelName: String?
+    let allowTextInsertion: Bool?
 }

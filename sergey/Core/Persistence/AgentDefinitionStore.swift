@@ -68,7 +68,8 @@ class AgentDefinitionStore: ObservableObject {
 
             let base = SettingsStore.shared.ollamaURL
             let trimmed = base.hasSuffix("/") ? String(base.dropLast()) : base
-            guard let url = URL(string: trimmed + "/tags") else {
+            // Ollama native endpoint: GET /api/tags returns {"models": [...]}.
+            guard let url = URL(string: trimmed + "/api/tags") else {
                 await MainActor.run {
                     self.modelsError = "Invalid URL — check Ollama URL"
                     self.isLoadingModels = false

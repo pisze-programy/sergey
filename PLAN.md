@@ -1,134 +1,317 @@
-# PLAN — Sergey: roadmapa rozwoju agenta
+# Sergey — Engineering Roadmap
 
-Dokument planistyczny: rozszerzenie Sergey z "otwieracza linków" do w pełni interaktywnego agenta
-(przeglądarka, łańcuchy zadań, pamięć, integracje). Na podstawie stanu z 2026-07-31.
+Product plan for Sergey, a local, voice-first macOS assistant: it listens (STT), sees
+(screen + vision), acts (task queue with tools), and is being extended toward a fully
+interactive browser-controlling co-pilot. Status as of 2026-07-31.
 
 ---
 
-## 1. Wizja
+## 1. Vision
 
-Sergey ma być aktywnym asystentem macOS: słucha (STT), widzi (screen + wizja), **działa w przeglądarce**
-(CDP), **czyta** strony (fetch/search), **łączy zadania w łańcuchy** i pamięta kontekst.
-Użytkownik mówi: *"Sprawdź pogodę na jutro i podsumuj"* → agent sam wyszukuje, wchodzi, czyta, podsumowuje.
+Sergey is an active macOS assistant that works alongside the user:
 
-## 2. Stan obecny (co już mamy — fundament)
+- Listens to voice commands (speech-to-text) and transcribes on demand.
+- Sees the screen (screen capture + vision models) and answers questions about it.
+- Acts: opens pages, reads content, and — eventually — operates a real browser (CDP),
+  draws on screen (annotation overlay), and listens to ambient conversation.
+- Chains tasks: one agent's output feeds the next; agents can spawn subagents.
+- Runs locally via Ollama; no external API keys by default.
 
-| Warstwa | Elementy | Status |
+Reference scenario: *"Check tomorrow's weather in Poznań and summarize it"* — the agent
+searches, opens a page, reads the content, and produces a summary from what it actually saw.
+
+---
+
+## 2. Current State
+
+### 2.1 What works today
+
+| Layer | Components | Status |
 |---|---|---|
-| **UI** | Overlay (NSPanel floating, zawsze-na-wierzchu), lista kolejki ze statusami na żywo (Queued/Running/Completed/Failed), ticker statusów | ✅ |
-| **Wejście** | STT głosowe: Left ⌘+⌥ → agent, Right ⌘+⌥ → transkrypcja do aplikacji; dyktowanie Parakeet | ✅ |
-| **Kolejka** | TaskQueueManager (priorytet, retry 3×, persistence JSON, sortowanie), TaskDispatcher (4 równoległe, health-check Ollama), odzyskiwanie po restarcie | ✅ |
-| **Pętla agenta** | TaskExecutor: ReAct (Thought/Action/Observation/Final Answer), max 6 iteracji, streaming do tickera (throttled), statusy krótkie | ✅ |
-| **Narzędzia** | screen_capture (+ opis wizyjny gdy skonfigurowany), open_url (http/https whitelist), frontmost_app, insert_text (bezpieczny prompt), notify | ✅ |
-| **LLM** | OllamaClient: streaming NDJSON (OpenAI-compat) + natywny /api/chat (wizja), LLMService | ✅ |
-| **Ustawienia** | General (URL, picker modeli z Ollamy, vision model), Records, History, Agents, Queue | ✅ |
-| **Persistence** | SettingsStore, TaskQueueManager, HistoryStore (per-zadanie, logi czyste ≤300 zn.), STTRecordStore, AgentDefinitionStore | ✅ |
-| **Okna** | Settings = normalne okno (Cmd+Tab przez aktywację .regular/.accessory, resize, pozycja), overlay = floating | ✅ |
-| **Bezpieczeństwo** | open_url whitelist, insert_text zakazany bez jawnej prośby, uczciwość modelu w promptcie | ✅ |
+| UI | Floating overlay (always-on-top panel), live queue list (Queued/Running/Completed/Failed), status ticker | Done |
+| Input | Voice: Left Cmd+Opt → agent task; Right Cmd+Opt → transcription into the frontmost app (Parakeet) | Done |
+| Queue | Priority, retry (3×), JSON persistence, restore-after-restart | Done |
+| Agent loop | TaskExecutor: ReAct (Thought/Action/Observation/Final Answer), max 6 iterations, throttled live status | Done |
+| Tools | screen_capture (vision describe), open_url (http/https whitelist), frontmost_app, insert_text (gated), notify | Done |
+| LLM | OllamaClient: streaming NDJSON (OpenAI-compatible) + native /api/chat (vision); LLMService | Done |
+| Settings | General (URL, model picker synced from Ollama, vision model), Records, History, Agents, Queue | Done |
+| Persistence | SettingsStore, TaskQueueManager, HistoryStore (per-task, full-text logs), STTRecordStore, AgentDefinitionStore | Done |
+| Windows | Settings = regular window (Cmd+Tab via activation policy, resizable, frame persistence); overlay = floating, always-on-top | Done |
 
-**Architektura:** warstwy Core (Agents/LLM, Agents/Providers, Agents/Tools, Orchestrator, Services, System, Persistence, Models) + UI (Managers, Panels, Views). Xcode 16 z PBXFileSystemSynchronizedRootGroup (nowe pliki auto-sync). Singletony (konwencja projektu).
+### 2.2 Recent hardening (learned from real testing)
 
----
+- **Serial queue** (`concurrentLimit = 1`): agents share resources (browser, screen,
+  keyboard focus); concurrent execution caused agents to interfere with each other.
+- **insert_text disabled by default** (Settings → General → Agent Tools): the agent typed
+  into apps without permission on two occasions (Xcode, a browser).
+- **Authoritative time in the system prompt**: the vision model misread on-screen clocks
+  (10:42 read as "14:56"); agents now receive the real date/time from the system.
+- **Honesty rule**: the agent once fabricated article titles when a cookie popup obscured
+  the page; the prompt now forbids inventing content.
+- **Vision image optimization**: screenshots are resized (max 1280px) and re-encoded as
+  JPEG (q75) before being sent to the vision model — 90-97% size reduction (13 MB → 0.4 MB).
 
-## 3. Roadmapa fazowa
+### 2.3 Architecture
 
-### Faza 1 — Web & dane (tekstowe czytanie stron) 🟢 ~0.5–1 dzień
-Agent przestaje tylko otwierać linki — **czyta ich treść**.
-
-- **Tool `search_web(query)`** — DuckDuckGo HTML (`html.duckduckgo.com/html/?q=`) lub Bing (`bing.com/search?q=`) bez klucza API; parser regex → top 5 (tytuł, URL, snippet) jako obserwacja
-- **Tool `fetch_url(url)`** — URLSession + ekstrakcja tekstu z HTML (strip tagów, entity decode, usuń script/style); limit rozmiaru (np. 8k znaków); whitelist http/https
-- **Tool `weather_forecast(city)`** — Open-Meteo API (bez klucza): geokodowanie + `hourly=temperature_2m,precipitation,weathercode` + timezone; zwraca prognozę na 7 dni — **pewne dane pogodowe** zamiast zgadywania
-- **Prompt**: poinformować model o nowych narzędziach; reguła: wolno `fetch_url`/`search_web` zamiast `open_url`, chyba że użytkownik prosi o otwarcie
-- **Risks**: JS-heavy strony → pusty tekst (fallback: wizja albo komunikat); blokady botów (DDG czasem CAPTCHA — retry/fetch z user-agent)
-
-### Faza 2 — CDP: prawdziwe sterowanie przeglądarką 🔴 ~2–4 dni (priorytet użytkownika)
-Agent **klika, scrolluje, wypełnia formularze, czyta zrenderowany DOM, robi screenshoty**.
-
-**Architektura (proponowana):**
-- `Core/Agents/Tools/Browser/CDPClient.swift` — klient WebSocket (URLSessionWebSocketTask) do Chrome DevTools Protocol; JSON-RPC (id/result/event), kolejkowanie komend, timeouty
-- `Core/Agents/Tools/Browser/BrowserSession.swift` — zarządzanie procesem Chrome: uruchomienie z `--remote-debugging-port=9222 --user-data-dir=<temp>`, detekcja portu, cleanup przy wyjściu; fallback: podpięcie do działającej instancji
-- `Core/Agents/Tools/Browser/BrowserTool.swift` — narzędzie z akcjami:
-  - `navigate(url)` → `Page.navigate`
-  - `click(selector|text)` → `Runtime.evaluate` (querySelector + click) — selektor albo wyszukanie tekstu
-  - `read(url|current)` → pobranie `document.body.innerText` (zrenderowany tekst!)
-  - `scroll(direction)` → `Runtime.evaluate(window.scrollBy)`
-  - `screenshot()` → `Page.captureScreenshot` → zapis PNG + opcjonalnie wizja
-  - `type(selector, text)` / `press(Enter)` → formularze
-- **Obserwacja do modelu**: tekst strony / wynik akcji (krótkie, ≤2k zn.)
-- **Bezpieczeństwo**: akcje TYLKO na http/https; `navigate` poza domeną startową wymaga zgody w promptcie; timeout na każdą komendę (15 s); konfigurowalne "dowolne strony" vs "whitelist domen"
-- **Wymaganie**: zainstalowany Chrome/Chromium (wykrywanie przez `NSWorkspace` / `open -a`)
-- **Kejs docelowy**: "wejdź na stronę pogodową, znajdź jutro 14:00, podsumuj" — agent: navigate → read → podsumowanie
-- **Risks**: WebSocket + CDP to sporo kodu niskopoziomowego; strony z anti-bot (Cloudflare) — ograniczone; przetestować na: wikipedia, wttr.in, open-meteo, portal pogodowy
-
-### Faza 3 — Chaining: łańcuchy zadań i wieloagentowość 🟡 ~1–2 dni
-Zadania zależne wykonują się sekwencyjnie, a wynik jednego agenta zasila kolejnego.
-
-- **Zależności w kolejce** — `QueuedTask.dependsOnTaskId: UUID?`: TaskDispatcher nie startuje zadania B, dopóki A nie ma statusu `.completed` (lub `.failed` → B się nie uruchamia / wariant "kontynuuj mimo błędu")
-- **Przekazywanie wyniku** — `QueuedTask.inputFrom: UUID?`: prompt B = `promptB + "\n\nResult from previous task:\n" + finalAnswer(A)`; wariant: osobny kanał `task.output`
-- **Wieloagentowe wzorce**:
-  - *Researcher → Summarizer*: agent A zbiera (search/fetch/CDP), agent B podsumowuje
-  - *Fan-out*: jedno polecenie → N niezależnych podzadań (np. "sprawdź 3 źródła") równolegle (kolejka to umie)
-  - *Fan-in*: wyniki N zadań → 1 agregator
-- **Składnia poleceń** (przykłady): "najpierw X, potem Y" → 2 zadania z dependsOn; konwersja w TaskExecutor/nowym `ChainBuilder`
-- **UI**: wiersze w kolejce pokazują łańcuch (indent / ikona zależności); wizualizacja w Settings → Queue
-- **Risks**: cykle w zależnościach (walidacja przy enqueue); martwe blokady (timeout na "czekanie na rodzica"); kolejka ma limit 4 równoległych — łańcuch to też zadania
-
-### Faza 4 — Pamięć i kontekst 🟡 ~1–2 dni
-- **Pamięć sesyjna**: historia konwersacji per "temat" (last N zadań) — TaskExecutor dokleja podsumowania poprzednich zadań do promptu (już mamy czystą historię per-zadanie — wystarczy selektor)
-- **Pamięć długoterminowa (RAG, opcjonalnie)**: embeddingi (np. nomic-embed-text przez Ollama) + zapis wektorowy w pliku JSON (bez zewn. baz) — "pamiętasz, co ustaliliśmy w zeszłym tygodniu?"
-- **Notatki/context store**: `sergey_context.json` — fakty, preferencje użytkownika, dane wielokrotnego użytku; tool `remember(fact)` / `recall(query)`
-- **Risks**: kontrola rozmiaru promptu; priorytet: sesyjna pamięć najpierw (tania), RAG później
-
-### Faza 5 — Integracje produktywności 🟡 ~1–2 dni
-- **Kalendarz** — odczyt EventKit (kalendarz lokalny): "czy mogę wziąć to spotkanie?"; zapis z potwierdzeniem
-- **Pliki (bezpieczne operacje)** — tool `file_ops`: list/read/write w `~/Documents/Sergey/` (piaskownica katalogowa), kopiowanie, podsumowanie pliku; ZAKAZ operacji poza dozwolonym katalogiem bez potwierdzenia
-- **Terminal (z potwierdzeniem)** — tool `shell(command)` z gatem: wymagane potwierdzenie użytkownika (UI w overlayu) dla komend "niebezpiecznych" (rm, sudo, git push...); biała lista bezpiecznych (ls, cat, pwd)
-- **Schowek** — read/write clipboard (przydatne: "skopiuj mi to")
-- **Powiadomienia/planowanie** — `schedule_notify(time, text)` (odroczone powiadomienia), powtarzalne zadania w kolejce (cron-lite)
-
-### Faza 6 — Jakość modelu i routing 🟡 ~1 dzień
-- **Routing modeli**: mały/szybki model do klasyfikacji intencji i formatowania akcji; duży do rozumowania. Ustawienie `fastModel` (jak vision/correction — wiemy już, jak to dodać)
-- **Strukturalne akcje zamiast tekstowego ReAct** (opcjonalnie): model zwraca JSON `{"tool": "...", "params": {...}}` — parsowanie stabilniejsze niż regex; wsparcie function-calling w Ollama (tools w /api/chat)
-- **Fallback modelu** — jeśli główny model nie odpowie w formacie → retry z innym modelem
-
-### Faza 7 — UX i dopracowanie 🟢 ~1 dzień
-- **Konfigurowalne skróty** (Settings → Hotkeys): przypisanie akcji do kombinacji; wykrywanie konfliktów
-- **Screen Recording w PermissionManager + onboarding** (brakuje — znany gap)
-- **Auto-pruning** listy zadań (stare completed znikają po N) i activeAgents (górny limit)
-- **Focus Mode** — dokończyć (ukrywanie tickera, tryb cichy)
-- **Potwierdzenia w overlayu** dla niebezpiecznych akcji (gate dla shell/CDP poza whitelistem)
-
-### Faza 8 — Dystrybucja 🟡 ~1–2 dni
-- Podpisanie (Developer ID) + notaryzacja (notarytool), DMG (build.sh już jest)
-- Auto-update (Sparkle lub prosty check github releases)
-- Crash reporting (opcjonalnie) — raporty do pliku, bez telemetrii domyślnie
+Layers: Core (Agents/LLM, Agents/Providers, Agents/Tools, Orchestrator, Services, System,
+Persistence, Models) + UI (Managers, Panels, Views). Xcode 16 with
+`PBXFileSystemSynchronizedRootGroup` (new files auto-sync). Singletons by project convention.
 
 ---
 
-## 4. Kolejność i zależności
+## 3. Roadmap
+
+### Phase 1 — Web & Data Tools
+
+Text-based web reading so the agent stops at "opened the link" no longer.
+
+| Tool | Description |
+|---|---|
+| `search_web(query)` | DuckDuckGo HTML or Bing, keyless; parses top 5 results (title, URL, snippet) into an observation |
+| `fetch_url(url)` | URLSession + HTML-to-text extraction (strip tags/scripts, entity decode); size limit ~8k chars; http/https whitelist |
+| `weather_forecast(city)` | Open-Meteo API (keyless): geocoding + hourly temperature/precipitation/weather code + timezone; returns a 7-day forecast |
+
+Prompt rule: prefer `fetch_url`/`search_web` over `open_url` unless the user asks to open a page.
+
+Risks: JS-heavy pages return empty text (fallback: vision or an honest message); bot
+protection may require retries/user-agent.
+
+### Phase 2 — Browser Automation (CDP) — Priority 1
+
+Real browser control: click, scroll, fill forms, read rendered DOM, screenshot.
+
+Problems from real tests that CDP solves:
+- Cookie popup on wykop.pl blocked reading → agent hallucinated article titles. CDP clicks "Accept All" and reads actual content.
+- 404 on allegro.pl — agent coped (navigated to homepage), but CDP allows correcting the URL/search directly.
+- Google Maps reading (names/ratings/hours) works via vision; CDP provides the DOM instead — more reliable.
+
+Architecture:
+- `Core/Agents/Tools/Browser/CDPClient.swift` — WebSocket client (URLSessionWebSocketTask) for Chrome DevTools Protocol; JSON-RPC with id/result/event, command queueing, timeouts.
+- `Core/Agents/Tools/Browser/BrowserSession.swift` — Chrome process management (`--remote-debugging-port=9222 --user-data-dir=<temp>`), port detection, cleanup; fallback: attach to a running instance.
+- **One shared browser session** — requires the serial queue (done); if concurrency returns, add a browser lock.
+- `BrowserTool` actions: `navigate(url)`, `click(selector|text)`, `read(url|current)` (rendered `innerText`), `scroll(direction)`, `screenshot()` (JPEG via CDP), `type(selector, text)` / `press(Enter)`.
+
+Safety: http/https only; out-of-origin navigation requires prompt consent; 15s per-command timeout; configurable domain whitelist. Requires Chrome/Chromium.
+
+Target case: "go to wykop.pl, find three politics articles" → navigate → click("Accept All") → read → summarize.
+
+### Phase 3 — Task Chaining & Multi-Agent Dependencies
+
+Dependent tasks execute sequentially; one agent's result feeds the next.
+
+- `QueuedTask.dependsOnTaskId` — task B does not start until A is `.completed` (or `.failed` → B skipped / "continue despite failure" variant).
+- `QueuedTask.inputFrom` — prompt B = `promptB + "\n\nResult from previous task:\n" + finalAnswer(A)`.
+- Patterns: Researcher → Summarizer; fan-out (one command → N independent subtasks); fan-in (N results → 1 aggregator).
+- Command parsing: "first X, then Y" → two tasks with dependency (a `ChainBuilder`).
+- UI: queue rows show the chain (indent / dependency icon) in Settings → Queue.
+
+Risks: dependency cycles (validate on enqueue), deadlocks (timeout on "waiting for parent").
+Note: the queue is serial, so chains already run in order; resource locks (browser, screen,
+focus) become required only if concurrency is reintroduced.
+
+### Phase 4 — Memory & Context
+
+- **Session memory**: recent task summaries appended to the prompt (clean per-task history already exists — select from it).
+- **Long-term memory (RAG, optional)**: embeddings (e.g. nomic-embed-text via Ollama) stored in JSON (no external DB) — "do you remember what we agreed last week?"
+- **Context store**: `sergey_context.json` — facts, preferences, reusable data; tools `remember(fact)` / `recall(query)`.
+
+Priority: session memory first (cheap), RAG later.
+
+### Phase 5 — Productivity Integrations
+
+- **Calendar** — EventKit read ("can I take this meeting?"); write with confirmation.
+- **Files (sandboxed)** — `file_ops`: list/read/write inside `~/Documents/Sergey/`; operations outside require confirmation.
+- **Terminal (gated)** — `shell(command)` with an approval gate for dangerous commands (rm, sudo, git push); whitelist for safe ones (ls, cat, pwd).
+- **Clipboard** — read/write ("copy this for me").
+- **Scheduled notifications** — `schedule_notify(time, text)`; recurring tasks (see Phase 14).
+
+### Phase 6 — Model Routing & Quality
+
+- **Model routing**: small/fast model for intent classification and action formatting; large model for reasoning. A `fastModel` setting (same pattern as vision model).
+- **Structured actions** (optional): model returns JSON `{"tool": ..., "params": {...}}` instead of text ReAct — more stable parsing; supports Ollama function-calling.
+- **Model fallback**: retry with a different model if the primary one fails to follow the format.
+
+### Phase 7 — UX Polish
+
+- Configurable shortcuts (Settings → Hotkeys) with conflict detection.
+- Screen Recording permission in PermissionManager + onboarding (known gap).
+- Auto-pruning of the queue list and `activeAgents` (upper bounds).
+- Focus Mode completion (hide ticker, quiet mode).
+- In-overlay confirmations for dangerous actions (see Phase 13).
+
+### Phase 8 — Distribution
+
+- Developer ID signing + notarization (notarytool); DMG via existing build.sh.
+- Auto-update (Sparkle or a simple GitHub-releases check).
+- Crash reporting (optional, file-based; no telemetry by default).
+
+### Phase 9 — Ambient Co-Pilot (system audio + microphone)
+
+A background agent that lives with the user: hears what the user hears (speakers — e.g.
+the other side of a video call) and what the user says (microphone), transcribes both
+streams in parallel, takes notes, screenshots, and surfaces text in the overlay.
+Activated by voice: "hey Sergey, take notes for this call."
+
+Architecture:
+- **System audio** → `ScreenCaptureKit` (macOS 13+, same API as screenshots, no drivers; fallback: BlackHole). Microphone → existing `AudioRecordingService`.
+- **Two sample streams** → separate transcription ("Speaker: ..." / "You: ...") — gives the conversation structure.
+- **Live STT (2-4 s latency)** — sliding-window chunking: every ~2 s transcribe the last 5-8 s window with ~1 s overlap and word-boundary dedupe (patterns from the existing parakeet-yt-stt / call-stt-rag-memo work).
+- **Micro-event loop** (instead of one-shot ReAct):
+  - transcription accumulates into a rolling context (last ~60 s — bounded)
+  - every N seconds / at sentence boundaries → short "extract notes / decide action" prompt to a fast model
+  - **local keyword spotting** (no LLM): "screenshot" → immediate capture; "hey Sergey" → start/stop
+  - large model only on demand (summary, analysis)
+- **Outputs**: notes to a markdown file + overlay preview; screenshots via existing screen_capture + vision; text hints in the overlay.
+
+Steps: P1 ScreenCaptureKit audio (~1 day); P2 streaming/chunked transcription for both streams (~1-2 days); P3 micro-event loop + keyword spotting + notes (~2 days); P4 contextual vision + overlay display (~1 day).
+
+Risks: ASR quality on compressed call audio; window/overlap/dedupe tuning; macOS 13+ and Screen Recording permission.
+
+### Phase 10 — Screen Drawing Co-Pilot (annotation overlay)
+
+The agent points, draws and hints **on screen** through a non-clickable overlay: marker/cursor,
+paths, element borders, text next to the cursor ("click here"). Same persona as Phase 9,
+with a visual channel added.
+
+**Two modes — two implementations:**
+
+**Mode A — Scripted:** the full sequence drawn at once, no interaction. Example: onboarding
+demo — the agent writes "Hello World" on screen as a welcome.
+- One `annotate` call with a command list → the app plays it as one animation.
+
+**Mode B — Interactive:** the agent draws step 1 → waits for the user (click or speech) →
+draws step 2 → ... "oh, you clicked here — let me find the other one."
+- **Session state machine** (separate runtime from TaskExecutor; stateful, not one-shot ReAct):
+  states `waiting-for-input / processing / drawing`; per turn: user input → short LLM prompt
+  (fast model) → one annotate step → draw → wait. Session context in memory (bounded, last ~10 turns).
+- **User input channels:** voice (reuse STT) and optionally clicks — a global mouse monitor
+  (NSEvent.addGlobalMonitor, already used for hotkeys) so Sergey sees where the user clicked
+  and can verify ("you clicked the highlighted button — now..."). The overlay stays
+  click-through; we only observe.
+- Idle timeout: no reaction for N seconds → the agent may prompt or end the session.
+- Mode selection: the model decides from context ("write Hello World" = A; "guide me step by step" = B).
+
+**Key principle (both modes) — the LLM writes the script, the app animates:**
+The model is never in the render loop (~1 s per "draw" call would make the agent feel dead).
+Mode A sends the whole script; Mode B sends one step per turn while the app animates that
+step (cursor interpolation, stroke progress) as the LLM thinks about the next one.
+Interpolation of the thousands of pixels between endpoints is done app-side
+(CADisplayLink / Core Animation); the model provides only endpoints:
+`cursor(x,y)`, `path([p1,p2,p3])`, `box(x,y,w,h)`, `text(x,y,"...")`, `clear()`.
+
+Architecture: full-screen click-through NSPanel (`ignoresMouseEvents = true`, pattern from
+StatusOverlayPanel) + canvas; `AnnotationEngine` (play(script) / play(step) + pause + clear);
+`CoPilotSession` for Mode B. Coordinates normalized (0-1000) from the vision model, mapped
+to pixels by the app (resolution-independent). With CDP: `box(elementId)` →
+`getBoundingClientRect()` — pixel-accurate frames without vision guessing.
+
+### Phase 11 — Extended Toolset
+
+New agent tools. All approved.
+
+| Tool | Purpose | Example |
+|---|---|---|
+| `speak(text)` | Text-to-speech via AVSpeechSynthesizer — Sergey answers aloud | "say the summary out loud" |
+| `ocr(image)` | On-device OCR via Vision framework (VNRecognizeTextRequest) — fast, reliable text extraction without a vision model | "read the text in this screenshot" |
+| `describe_ui()` | Accessibility tree of the frontmost app — exact element names for native apps (more accurate than vision) | "what buttons are on this window?" |
+| `clipboard_read` / `clipboard_write` | System clipboard | "copy this for me" |
+| `screenshot_region(x,y,w,h)` | Capture a region (screencapture -R) — lighter, less noise for vision | "screenshot just the chart" |
+| `window_info()` | Titles/frames of open windows | "which tab am I on?" |
+| `edit_input(text)` | Read and **replace** the text of the focused input field **without submitting** — never presses Enter; the user reviews and sends manually | see below |
+
+**`edit_input` — safe input translation/editing (user request):**
+
+The agent can take text already typed in an input field (with the app's visual/language
+context), and when told "translate this", it:
+1. Locates the focused input (AX `kAXFocusedUIElement` + value) — works for native apps and web inputs.
+2. Reads the current value.
+3. Translates/corrects it to the target language with the LLM (respecting the app's
+   context language) — or applies a requested edit.
+4. Replaces the text in the input (AX set value; fallback: select-all + type).
+5. **Never presses Enter** — the swap is only a draft; the user reviews and submits it
+   manually, preventing accidental sends and errors.
+
+Example: user has an English message typed in a chat input and says *"translate this to
+Polish"* → the agent reads the input, replaces it with the Polish draft, and does not send.
+Example: *"fix the typos in what I wrote"* → corrected draft replaces the selection.
+
+### Phase 12 — Agent Personas, Permissions & Subagents
+
+User-defined agents, wired into the actual execution path.
+
+- **C1 — Use AgentDefinitionStore in the loop.** Definitions exist in Settings → Agents but
+  are not used by TaskExecutor today. Wire persona (name, system prompt, model, allowed
+  tools, scope) into execution.
+- **C2 — Built-in personas:** Researcher (web), Scribe (meeting notes), UI Guide (Phase 10),
+  Automator (gated shell/files), Translator (STT → LLM → TTS/insert), Monitor (calendar/notifications).
+  Select a persona by voice: "activate Researcher".
+- **C3 — Per-agent tool permissions:** a whitelist per persona — e.g. Researcher has no
+  access to insert_text or shell.
+- **Per-agent model assignment** (Settings → Agents): each agent definition selects its
+  model from the Ollama list (same picker as General).
+- **F2 — Subagents:** an agent may spawn a subagent to help complete a task (e.g. a
+  Researcher spawning a Summarizer). Subagent scope is configured in Settings → Agents the
+  same way as permissions: allowed tools, system prompt, model, output contract. Parent
+  waits for the subagent's result and continues.
+
+### Phase 13 — Interaction & Feedback
+
+- **D1 — In-overlay confirmations** (Confirm/Cancel) for dangerous actions — the user
+  clicks in the overlay, the agent waits. Replaces textual gates for shell/files/out-of-domain CDP.
+- **D2 — Answer rating** (thumbs up/down in the overlay) → quality log per model.
+- **D3 — TTS responses** (pairs with `speak`): a "read aloud" mode for long answers.
+
+### Phase 14 — Proactive Scheduling (cron-lite)
+
+- **E1 — Recurring tasks:** "every morning summarize my calendar", "every Friday at 17:00
+  back up the project". Implemented as scheduled queue tasks (a cron-lite evaluator).
+- **Corner case — machine asleep / lid closed:** a scheduled task that fires while the
+  laptop is closed or sleeping must **not be skipped**. The queue persists tasks; the
+  dispatcher runs on wake, so a missed window executes as soon as the machine is active
+  (optionally with an "executed late" marker in history and a notification). The same
+  deferral applies to recurring tasks whose slot was missed.
+
+### Phase 15 — Context Quality
+
+- **F1 — Context compression:** long observations are summarized by the LLM before being
+  appended (instead of truncating), keeping prompts small and responses fast — applies to
+  web fetches, vision descriptions, and long transcripts.
+
+---
+
+## 4. Ordering & Dependencies
 
 ```
-Faza 1 (web/search/weather)  ← fundament czytania; tania; robi kejs pogodowy
+Phase 2 (CDP)               ← Priority 1: clicks/reads pages (cookie popups, DOM)
    ↓
-Faza 2 (CDP)                  ← wymaga fetch/search mentalnie; niezależne technicznie
+Phase 1 (web tools)          ← cheap complement: text reading without images
    ↓
-Faza 3 (chaining)             ← korzysta z F1/F2 (łańcuchy webowych zadań)
-   ↓
-Faza 4 (pamięć)               ← korzysta z czystej historii (już jest)
-   ↓
-Fazy 5–8                      ← niezależne, wg priorytetu użytkownika
+Phase 3 (chaining)           ← builds on Phases 1-2
+Phase 4 (memory)             ← builds on existing clean history
+Phase 5-8                    ← independent, by priority
+Phase 9-10 (ambient + drawing) ← long-term co-pilot vision; need Phases 2, 6, live STT
+Phase 11-15                  ← toolset, personas/subagents, interaction, scheduling, context
 ```
 
-**Rekomendowana najbliższa iteracja:** Faza 1 (search_web + fetch_url + weather_forecast) — domyka kejs pogodowy bez CDP; potem Faza 2 (CDP) — klikanie, o które pytałeś.
+Recommended next iteration: Phase 2 (CDP), then Phase 1, then Phase 12 (personas — the
+largest untapped value in existing UI), then scheduling (Phase 14) with the wake corner case.
 
-## 5. Świadome "nie" (non-goals na teraz)
+---
 
-- Aplikacja webowa/telefon — tylko macOS
-- Zewnętrzne API z kluczami (OpenAI, serwisy płatne) — priorytet lokalność (Ollama); wyjątki tylko na wyraźne życzenie
-- Pełna automatyzacja bez zgody — wszystkie akcje destrukcyjne (shell, pliki poza sandboxem, CDP poza domeną) wymagają potwierdzenia
-- Playwright z bundlowanym Node — zbyt ciężkie; wybieramy CDP (Chrome użytkownika)
+## 5. Non-Goals (current)
 
-## 6. Jak testować (w skrócie)
+- Mobile/web client — macOS only.
+- External API keys (OpenAI, paid services) — local-first (Ollama); exceptions only on request.
+- MCP / external tool servers and JSON-defined skills — **explicitly deferred** (not in this cycle).
+- Contextual app triggers ("when I open Slack, remind me") — deferred.
+- Unattended automation: all destructive actions (shell, files outside the sandbox, CDP
+  out-of-origin) require confirmation.
+- Playwright with a bundled Node runtime — too heavy; CDP against the user's Chrome instead.
 
-Każda faza: 1) build `xcodebuild ... build`, 2) kejsy w TESTING.md (aktualizować na bieżąco),
-3) manualne kejsy głosowe (Left ⌘+⌥) — bo to główny interfejs.
+---
+
+## 6. Testing & Validation
+
+Each phase: (1) `xcodebuild ... build`; (2) update the cases in TESTING.md; (3) run manual
+voice scenarios (Left Cmd+Opt) — voice is the primary interface. Vision/screen scenarios
+should be validated on real pages and real calls before sign-off.

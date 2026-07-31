@@ -14,18 +14,15 @@ struct SettingsGeneralView: View {
                         .environmentObject(permissionManager)
 
                     SettingsSectionContainer("Ollama Connection", subtitle: "The endpoint where your local Ollama server is running.") {
-                        OllamaHealthRow(healthService: healthService)
+                        OllamaHealthRow(healthService: healthService, agentStore: agentStore)
                         SettingsDivider()
                         SettingsTextFieldRow("Server URL", placeholder: "http://localhost:11434", text: $store.ollamaURL)
                         SettingsDivider()
                         SettingsModelPickerRow(
                             "Default Model",
-                            subtitle: "The specific model to use for processing. Models are fetched from the Ollama server; press refresh after pulling a new one.",
+                            subtitle: "The specific model to use for processing. Press Sync to refresh the list after pulling a new model.",
                             selection: $store.modelName,
-                            models: agentStore.availableModels,
-                            isLoading: agentStore.isLoadingModels,
-                            error: agentStore.modelsError,
-                            onRefresh: { agentStore.refreshModels() }
+                            models: agentStore.availableModels
                         )
                         SettingsDivider()
                         SettingsModelPickerRow(
@@ -33,10 +30,7 @@ struct SettingsGeneralView: View {
                             subtitle: "Used to describe screen captures; pick \"Not set\" to disable.",
                             allowEmpty: true,
                             selection: $store.visionModelName,
-                            models: agentStore.availableModels,
-                            isLoading: agentStore.isLoadingModels,
-                            error: agentStore.modelsError,
-                            onRefresh: { agentStore.refreshModels() }
+                            models: agentStore.availableModels
                         )
                     }
 
@@ -49,6 +43,14 @@ struct SettingsGeneralView: View {
                             Text("Polski").tag("pl")
                         }
                         SettingsToggleRow("Save Records", subtitle: "Keep a history of all dictations.", isOn: $store.sttSaveRecords, disabled: !store.sttEnabled)
+                    }
+
+                    SettingsSectionContainer("Agent Tools", subtitle: "Controls which actions the agent is allowed to perform.") {
+                        SettingsToggleRow(
+                            "Allow text insertion",
+                            subtitle: "Lets the agent type text into your apps (insert_text). Disabled by default — typing into the wrong app can corrupt your work.",
+                            isOn: $store.allowTextInsertion
+                        )
                     }
 
                     SettingsSectionContainer("Focus Mode") {
@@ -77,53 +79,70 @@ struct SettingsGeneralView: View {
 
 private struct OllamaHealthRow: View {
     @ObservedObject var healthService: OllamaHealthService
-    @State private var isChecking = false
+    @ObservedObject var agentStore: AgentDefinitionStore
+    @State private var isSyncing = false
 
     var body: some View {
-        HStack(spacing: 10) {
-            Circle()
-                .fill(healthService.isHealthy ? Color.green : Color.red)
-                .frame(width: 9, height: 9)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Circle()
+                    .fill(healthService.isHealthy ? Color.green : Color.red)
+                    .frame(width: 9, height: 9)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(healthService.isHealthy ? "Connected" : "Disconnected")
-                    .font(.body.weight(.medium))
-                    .foregroundColor(healthService.isHealthy ? .green : .red)
-                if let lastCheck = healthService.lastCheckedAt {
-                    Text("Last checked \(timeAgo(lastCheck))")
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(healthService.isHealthy ? "Connected" : "Disconnected")
+                        .font(.body.weight(.medium))
+                        .foregroundColor(healthService.isHealthy ? .green : .red)
+                    if let lastCheck = healthService.lastCheckedAt {
+                        Text("Last checked \(timeAgo(lastCheck))")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Spacer()
+
+                Button {
+                    sync()
+                } label: {
+                    Label("Sync", systemImage: "arrow.triangle.2.circlepath")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(isSyncing)
+                .help("Check the Ollama connection and fetch the latest model list")
+            }
+
+            // Single place for the model-fetch state: spinner while syncing,
+            // one error line when the server is unreachable.
+            if agentStore.isLoadingModels {
+                HStack(spacing: 6) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Syncing models…")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
-            }
-
-            Spacer()
-
-            if !healthService.isHealthy {
-                Button("Check Now") {
-                    checkNow()
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-                .disabled(isChecking)
-            } else {
-                Button("Check") {
-                    checkNow()
-                }
-                .buttonStyle(.plain)
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .disabled(isChecking)
+            } else if let error = agentStore.modelsError {
+                Label(error, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundColor(.red)
+            } else if agentStore.availableModels.isEmpty {
+                Text("No models found — check the Ollama URL and sync.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
         }
         .padding(.vertical, 4)
     }
 
-    private func checkNow() {
-        guard !isChecking else { return }
-        isChecking = true
+    private func sync() {
+        guard !isSyncing else { return }
+        isSyncing = true
         Task { @MainActor in
             _ = await healthService.performHealthCheck()
-            isChecking = false
+            agentStore.refreshModels()
+            isSyncing = false
         }
     }
 

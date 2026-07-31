@@ -82,7 +82,11 @@ final class TaskExecutor {
 
                     statusService.updateStatusMessage("🔧 Agent \(agentNumber): \(skillName)…")
                     do {
-                        let observation = try await tool.execute(parameters: parameters)
+                        // Pass the user's request as "focus" so tools that analyze
+                        // the screen (screen_capture) concentrate on what matters.
+                        var params = parameters
+                        params["focus"] = task.prompt
+                        let observation = try await tool.execute(parameters: params)
                         conversationText += "\n" + response.fullText
                         conversationText += "\n[Observation] \(observation)"
                         statusService.updateAgentState(for: agentId, workDescription: "🔧 \(skillName) → \(observation)")
@@ -135,8 +139,17 @@ final class TaskExecutor {
     }
 
     private func buildSystemPrompt() -> String {
-        """
+        let now = Date()
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "EEEE, MMMM d, yyyy 'at' HH:mm (local time)"
+        let nowText = formatter.string(from: now)
+
+        return """
         You are Sergey, a macOS automation assistant. Complete the user's request by reasoning step by step, using the available tools when they help.
+
+        Current date and time (authoritative, from the system): \(nowText).
+        Use this as the correct time. Clocks or timestamps read from screenshots may be misread by the vision model — ignore them for time-based decisions.
 
         Use this format for every turn:
         Thought: your concise reasoning
@@ -152,8 +165,13 @@ final class TaskExecutor {
         - Emit at most one Action per turn. After each Action you will receive an [Observation] with the tool result; use it to decide the next step.
         - Only use tools from the list above. If you do not need a tool, respond directly with a Final Answer.
         - Always end with a Final Answer.
+        - NEVER end with a Final Answer that merely promises to use a tool. First emit the Action, wait for the [Observation], then emit the Final Answer with the actual result.
+        - If an observation is insufficient, unclear, or shows an error (e.g. a partially loaded page), do NOT give up — take another action (screen_capture again, a different search query) to obtain better information. Only conclude once you have enough evidence.
+        - VISUAL / SCREEN QUESTIONS: for any request about what is on the screen (e.g. "what do you see", "what's on my screen", "find text on the screen", "check what is displayed"), you MUST call screen_capture first. Its observation includes "Visual analysis: <text description>" — base your answer on that text. Do not claim you cannot see the screen; screen_capture returns a text description you can read.
+        - AFTER OPENING A PAGE: if the task requires knowing what a page contains (search results, lists, opening hours, etc.), do NOT stop after open_url — follow up with screen_capture and read the "Visual analysis" to extract the actual information, then answer from it.
         - SAFETY: NEVER use insert_text unless the user explicitly asks you to type text into an application. Typing into the frontmost app on your own initiative can corrupt the user's work (e.g. source code in an editor). Never modify or type into an app without being told to.
-        - HONESTY: if the request cannot be fulfilled with the available tools (e.g. web lookups are not available), say so plainly in the Final Answer. Do NOT improvise with a tool to fake a result.
+        - HONESTY: NEVER invent content. If an observation explicitly says content is obscured, blocked or unavailable (e.g. a privacy popup covering a page), report that honestly in the Final Answer instead of fabricating titles, numbers or names. If the request cannot be fulfilled with the available tools, say so plainly. Do NOT improvise with a tool to fake a result.
+        - TIME QUESTIONS: for questions about the current time or date, answer directly from the provided "Current date and time" — do NOT use screen_capture for this.
         """
     }
 }

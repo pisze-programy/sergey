@@ -52,11 +52,9 @@ final class AgentStatusService: ObservableObject {
     }
 
     private func makeLog(statusTitle: String, workDescription: String) -> AgentLog {
-        let maxLength = 300
-        let text = workDescription.count > maxLength
-            ? String(workDescription.prefix(maxLength)) + "…"
-            : workDescription
-        return AgentLog(statusTitle: statusTitle, workDescription: text)
+        // History stores the full text — logs are already meaningful events
+        // (start, tool use, final answer, retries), not raw LLM monologues.
+        AgentLog(statusTitle: statusTitle, workDescription: workDescription)
     }
     
     func updateStatusMessage(_ text: String) {
