@@ -41,7 +41,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor func applicationWillTerminate(_ notification: Notification) {
         DictationOrchestrator.shared.forceCleanup()
         StatusOverlayPanel.shared.hide()
+        // Stop the agent task loop, then shut down the browser session so a
+        // self-launched Chrome is terminated and its temp profile cleaned up.
         taskDispatcher?.stop()
+        BrowserSession.shared.shutdown()
     }
 
 

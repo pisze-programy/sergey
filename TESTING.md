@@ -98,6 +98,21 @@ Prosta instrukcja: jak uruchomić aplikację, przetestować agenta i czego się 
 - [ ] **T15 — Historia:** po testach kliknij wiersz zadania w overlayu → panel z logami; Settings → History → rekordy istnieją.
 - [ ] **T16 — Skróty:** `Ctrl+Opt` toggle, `Esc` zwija, oba pary dyktowania działają — bez crashy.
 
+### H. Przeglądarka agenta (browser tool) — wymaga Chrome + zgody w ustawieniach
+
+> Najpierw włącz: **Settings → General → Agent Tools → Enable browser automation**. Agent ma **własną, ukrytą instancję Chrome** (osobny profil, okno poza ekranem) — Twoja przeglądarka i myszka są nietykane. Screenshoty przeglądarki robi z renderera (bez zgody Screen Recording).
+
+- [ ] **B1 — read:** powiedz `Open https://example.com and read the page title` → agent nawiguje (własna, ukryta przeglądarka) i podaje tytuł strony.
+- [ ] **B2 — elements (drzewo DOM):** powiedz `Go to wykop.pl and list the main navigation links` → agent używa `browser elements` (struktura DOM, nie screenshot) i wypisuje linki. Sprawdź w logach (Settings → History), że nie wykonał screen_capture.
+- [ ] **B3 — screenshot przeglądarki:** powiedz `Open example.com and take a screenshot of that page` → plik `sergey-browser-*.jpg` w temp:
+  ```bash
+  ls -la /var/folders/*/T/sergey-browser-*.jpg
+  ```
+  Obrazek pokazuje **stronę agenta**, nie Twój ekran.
+- [ ] **B4 — izolacja:** miej otwartą własną przeglądarkę z Twoimi zakładkami; poproś agenta o `Open https://news.ycombinator.com and summarize the top stories` → Twoje zakładki/cookies nietknięte; agent pracuje w osobnej instancji (sprawdź `ps aux | grep sergey-chrome-profile`).
+- [ ] **B5 — gate bezpieczeństwa:** wyłącz "Enable browser automation" w ustawieniach, poproś o `Open example.com and read it` → agent **uczciwie odpowiada**, że automatyzacja przeglądarki jest wyłączona; nie odpala Chrome.
+- [ ] **B6 — żadnych zabranych klików:** podczas pracy agenta używaj myszki w innych aplikacjach → kursor nigdy nie jest przejmowany; kliknięcia agenta są wirtualne (w rendererze jego przeglądarki).
+
 ## 6. Znane ograniczenia (przed wypuszczeniem na produkcję)
 
 1. **Screen Recording nie jest jeszcze w onboarding** — trzeba dodać ręcznie w ustawieniach systemu.

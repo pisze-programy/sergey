@@ -136,6 +136,9 @@ final class TaskExecutor {
                 CommunicationDispatcher.shared.dispatch(message: "Task failed: \(task.title) — \(reason)", priority: .critical)
             }
         }
+
+        // Post-task optimization: keep temp dirs clean
+        Self.purgeTempArtifacts()
     }
 
     private func buildSystemPrompt() -> String {
@@ -169,9 +172,35 @@ final class TaskExecutor {
         - If an observation is insufficient, unclear, or shows an error (e.g. a partially loaded page), do NOT give up — take another action (screen_capture again, a different search query) to obtain better information. Only conclude once you have enough evidence.
         - VISUAL / SCREEN QUESTIONS: for any request about what is on the screen (e.g. "what do you see", "what's on my screen", "find text on the screen", "check what is displayed"), you MUST call screen_capture first. Its observation includes "Visual analysis: <text description>" — base your answer on that text. Do not claim you cannot see the screen; screen_capture returns a text description you can read.
         - AFTER OPENING A PAGE: if the task requires knowing what a page contains (search results, lists, opening hours, etc.), do NOT stop after open_url — follow up with screen_capture and read the "Visual analysis" to extract the actual information, then answer from it.
+        - PAGE CONTENT: for accurate reading of a page's content (article text, search results, opening hours, prices), prefer the browser tool — navigate to the page, then read its text. screen_capture remains fine for layout/visual checks, but browser read is the accurate source for page text.
+        - COST & PIPELINE (browser): prefer the cheapest source of information. Order: browser read (page text) → browser elements (DOM structure: find/interact with specific elements, see what is clickable) → browser screenshot (vision) ONLY for layout/visual questions. Do not take a screenshot when text or element data is sufficient — screenshots are expensive.
+        - After inspecting the page, use the elements list (tags, text, href) to reason about the page's structure before deciding on further actions; do not re-screenshot the same page needlessly.
         - SAFETY: NEVER use insert_text unless the user explicitly asks you to type text into an application. Typing into the frontmost app on your own initiative can corrupt the user's work (e.g. source code in an editor). Never modify or type into an app without being told to.
+        - SAFETY: NEVER use the browser tool unless the user explicitly asked to browse or read a specific page. If browser automation is disabled, report that honestly in the Final Answer instead of working around it.
         - HONESTY: NEVER invent content. If an observation explicitly says content is obscured, blocked or unavailable (e.g. a privacy popup covering a page), report that honestly in the Final Answer instead of fabricating titles, numbers or names. If the request cannot be fulfilled with the available tools, say so plainly. Do NOT improvise with a tool to fake a result.
         - TIME QUESTIONS: for questions about the current time or date, answer directly from the provided "Current date and time" — do NOT use screen_capture for this.
         """
+    }
+
+    /// Best-effort post-task cleanup: removes `sergey-browser-*` and
+    /// `sergey-screen-*` temp artifacts (browser screenshots, screen captures)
+    /// older than one hour. Failures are swallowed so cleanup can never affect
+    /// a task's result, and the scan is trivial — no latency concern.
+    private static func purgeTempArtifacts() {
+        let directory = FileManager.default.temporaryDirectory
+        guard let entries = try? FileManager.default.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: [.contentModificationDateKey],
+            options: [.skipsHiddenFiles]
+        ) else { return }
+        let cutoff = Date().addingTimeInterval(-3600)
+        for entry in entries {
+            let name = entry.lastPathComponent
+            guard name.hasPrefix("sergey-browser-") || name.hasPrefix("sergey-screen-") else { continue }
+            guard let values = try? entry.resourceValues(forKeys: [.contentModificationDateKey]),
+                  let modified = values.contentModificationDate,
+                  modified < cutoff else { continue }
+            try? FileManager.default.removeItem(at: entry)
+        }
     }
 }

@@ -11,6 +11,7 @@ final class ToolRegistry {
         register(FrontmostAppTool())
         register(InsertTextTool())
         register(NotifyTool())
+        register(BrowserTool())
     }
 
     func register(_ tool: AgentTool) {

@@ -51,6 +51,11 @@ struct SettingsGeneralView: View {
                             subtitle: "Lets the agent type text into your apps (insert_text). Disabled by default — typing into the wrong app can corrupt your work.",
                             isOn: $store.allowTextInsertion
                         )
+                        SettingsToggleRow(
+                            "Enable browser automation (browser tool)",
+                            subtitle: "Lets the agent drive a real Chrome browser (browser: navigate, read, title). Disabled by default — browser windows may appear on your screen.",
+                            isOn: $store.allowBrowser
+                        )
                     }
 
                     SettingsSectionContainer("Focus Mode") {

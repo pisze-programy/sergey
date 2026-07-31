@@ -34,6 +34,19 @@ class SettingsStore: ObservableObject {
     @Published var allowTextInsertion: Bool = false {
         didSet { save() }
     }
+    @Published var allowBrowser: Bool = false {
+        didSet {
+            save()
+            // `newValue` is unavailable in observers of wrapped properties;
+            // `allowBrowser` already holds the new value here.
+            if !allowBrowser {
+                // Browser automation was just turned off — tear down any
+                // self-launched Chrome so it doesn't keep running in the
+                // background. A pre-existing external Chrome is never touched.
+                BrowserSession.shared.shutdown()
+            }
+        }
+    }
     private init() {
         let home = FileManager.default.homeDirectoryForCurrentUser
         let configPath = home.appendingPathComponent(".sergey_config.json")
@@ -53,6 +66,7 @@ class SettingsStore: ObservableObject {
             self.onboardingShown = decoded.onboardingShown ?? false
             self.visionModelName = decoded.visionModelName ?? ""
             self.allowTextInsertion = decoded.allowTextInsertion ?? false
+            self.allowBrowser = decoded.allowBrowser ?? false
         } else {
             self.ollamaURL = defaultURL
             self.modelName = defaultModel
@@ -63,6 +77,7 @@ class SettingsStore: ObservableObject {
             self.onboardingShown = false
             self.visionModelName = ""
             self.allowTextInsertion = false
+            self.allowBrowser = false
         }
     }
 
@@ -76,7 +91,8 @@ class SettingsStore: ObservableObject {
             sttSaveRecords: sttSaveRecords,
             onboardingShown: onboardingShown,
             visionModelName: visionModelName,
-            allowTextInsertion: allowTextInsertion
+            allowTextInsertion: allowTextInsertion,
+            allowBrowser: allowBrowser
         )
         if let encoded = try? JSONEncoder().encode(data) {
             try? encoded.write(to: configURL)
@@ -94,4 +110,5 @@ struct SettingsData: Codable {
     let onboardingShown: Bool?
     let visionModelName: String?
     let allowTextInsertion: Bool?
+    let allowBrowser: Bool?
 }

@@ -89,7 +89,10 @@ Architecture:
 - `Core/Agents/Tools/Browser/CDPClient.swift` — WebSocket client (URLSessionWebSocketTask) for Chrome DevTools Protocol; JSON-RPC with id/result/event, command queueing, timeouts.
 - `Core/Agents/Tools/Browser/BrowserSession.swift` — Chrome process management (`--remote-debugging-port=9222 --user-data-dir=<temp>`), port detection, cleanup; fallback: attach to a running instance.
 - **One shared browser session** — requires the serial queue (done); if concurrency returns, add a browser lock.
-- `BrowserTool` actions: `navigate(url)`, `click(selector|text)`, `read(url|current)` (rendered `innerText`), `scroll(direction)`, `screenshot()` (JPEG via CDP), `type(selector, text)` / `press(Enter)`.
+- `BrowserTool` actions: `navigate(url)`, `click(selector|text)`, `read(url|current)` (rendered `innerText`), `elements` (deduplicated DOM structure: interactive tags, text, href, placeholder — capped ~2500 chars), `scroll(direction)`, `screenshot()` (JPEG via CDP), `type(selector, text)` / `press(Enter)`.
+
+**Cost pipeline (agent must follow):** cheapest source first —
+`read` (page text) → `elements` (DOM structure, locate/interact targets) → `screenshot` (vision, only for layout/visual questions). Never screenshot when text or elements suffice. The agent's browser is a dedicated, hidden Chrome instance (temp profile, offscreen window); CDP screenshots come from the renderer, never from the user's screen.
 
 Safety: http/https only; out-of-origin navigation requires prompt consent; 15s per-command timeout; configurable domain whitelist. Requires Chrome/Chromium.
 
@@ -277,6 +280,61 @@ User-defined agents, wired into the actual execution path.
   appended (instead of truncating), keeping prompts small and responses fast — applies to
   web fetches, vision descriptions, and long transcripts.
 
+### Phase 16 — Phone Automation (iOS) — stretch, future, non-critical
+
+Sergey drives the user's iPhone the same way it drives the browser: accessibility-first,
+element-level taps, device-rendered screenshots — for tasks like composing an SMS draft or
+checking a service app's availability.
+
+Reference scenario: "Open Booksy and find a barber available today, then prepare a reply" →
+the agent opens the app, reads the accessibility tree, filters today's availability,
+screenshots the calendar only if visual confirmation is needed, and returns a draft answer
+the user reviews before anything is sent.
+
+**Architecture — two paths:**
+
+*Path A — WebDriverAgent + libimobiledevice (robust, tree-first):*
+- WebDriverAgent (an XCTest runner) is installed once on the phone via Xcode with a free
+  Apple ID provisioning profile; re-signed after iOS updates.
+- Connection: USB via `iproxy` (libimobiledevice) tunneling WDA's HTTP API (port 8100) to
+  localhost; **WiFi after the one-time USB pairing** (remote-first per user preference).
+  Connection state (device name, iOS version, USB/WiFi) surfaced in Settings → Phone.
+- `PhoneClient` (HTTP → WDA session API) + `phone` tool mirroring the browser pipeline:
+  `elements` (accessibility tree snapshot: role, label, frame; capped ~2500 chars),
+  `open_app(bundleID)`, `tap(text|index)`, `type(text)`, `scroll(direction)`, `back`,
+  `screenshot` (device renderer via WDA — not the macOS screen).
+- Same cost pipeline as the browser: elements first, screenshot only for visual/layout.
+
+*Path B — iPhone Mirroring + vision (zero setup, fallback):*
+- Uses the macOS iPhone Mirroring window (iOS 18+/macOS 15+); the phone appears as a
+  macOS window.
+- Existing `screen_capture` + vision locate targets; synthetic clicks (CGEvent) are
+  forwarded by the mirror; requires D1 overlay confirmations and the mirror window visible.
+- No accessibility tree → vision-only: more tokens, less reliable. Fallback when Path A is
+  unavailable.
+
+**Safety (non-negotiable):**
+- `allowPhone` gate, default OFF (mirrors the `insert_text`/`browser` gates).
+- SMS is **never sent**: compose drafts in Messages via accessibility taps/typing, never
+  press Send — the same principle as `edit_input` (draft only; the user sends manually).
+- Read-only by default (availability, calendar, contacts); taps happen only when the user
+  explicitly asked for that action and confirms in the overlay (D1).
+- All phone actions logged in History (per-task logs) with the same transparency as macOS
+  actions.
+
+**Steps:** P1 bridge (`iproxy` USB/WiFi pairing, state in Settings) → P2 `PhoneClient` +
+`phone` toolset (elements/tap/type/screenshot/open_app) → P3 safety (gates, draft-only
+SMS, confirmations) → P4 recipes (Booksy availability scenario) → P5 voice activation
+("write a draft SMS to…").
+
+**Dependencies:** Phase 2 (cost-pipeline pattern), Phase 11 (tool conventions),
+Phase 13 (D1 confirmations), Phase 15 (context compression for long accessibility
+snapshots).
+
+**Risks:** WDA re-signing after iOS updates; iOS 17+ WDA quirks; iPhone Mirroring is
+Apple-controlled and private (fragile, feature-gated); vision-path token cost; first-time
+setup friction (Xcode + provisioning required for Path A).
+
 ---
 
 ## 4. Ordering & Dependencies
@@ -291,6 +349,7 @@ Phase 4 (memory)             ← builds on existing clean history
 Phase 5-8                    ← independent, by priority
 Phase 9-10 (ambient + drawing) ← long-term co-pilot vision; need Phases 2, 6, live STT
 Phase 11-15                  ← toolset, personas/subagents, interaction, scheduling, context
+Phase 16 (phone)             ← future stretch; needs Phases 2, 11, 13, 15
 ```
 
 Recommended next iteration: Phase 2 (CDP), then Phase 1, then Phase 12 (personas — the
@@ -300,7 +359,8 @@ largest untapped value in existing UI), then scheduling (Phase 14) with the wake
 
 ## 5. Non-Goals (current)
 
-- Mobile/web client — macOS only.
+- Mobile/web client — macOS only (no companion iPhone app; phone control in Phase 16 runs
+  through a WebDriverAgent runner on the device, a dev tool, not an App Store app).
 - External API keys (OpenAI, paid services) — local-first (Ollama); exceptions only on request.
 - MCP / external tool servers and JSON-defined skills — **explicitly deferred** (not in this cycle).
 - Contextual app triggers ("when I open Slack, remind me") — deferred.
